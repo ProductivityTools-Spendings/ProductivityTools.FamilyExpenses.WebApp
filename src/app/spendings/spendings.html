@@ -1,0 +1,56 @@
+<section class="spendings">
+  <header class="spendings__header">
+    <h2>Transakcje</h2>
+    <div class="spendings__actions">
+      <span class="spendings__count">{{ spendings().length }} pozycji</span>
+      <button type="button" (click)="load()" [disabled]="loading()">Odśwież</button>
+    </div>
+  </header>
+
+  @if (loading()) {
+    <p class="spendings__info">Ładowanie…</p>
+  } @else if (error()) {
+    <p class="spendings__error">Błąd: {{ error() }}</p>
+  } @else if (spendings().length === 0) {
+    <p class="spendings__info">Brak transakcji.</p>
+  } @else {
+    <div class="spendings__table-wrapper">
+      <table class="spendings__table">
+        <thead>
+          <tr>
+            <th>Id</th>
+            <th>Data</th>
+            <th>Godzina</th>
+            <th>Typ</th>
+            <th>Nazwa</th>
+            <th class="num">Kwota</th>
+            <th>Konto źródłowe</th>
+            <th>Konto docelowe</th>
+            <th>Konto</th>
+            <th>Kategoria</th>
+            <th>Notatka</th>
+            <th>Allegro</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (s of spendings(); track s.id) {
+            <tr [class.negative]="s.amount < 0" [class.positive]="s.amount > 0">
+              <td>{{ s.id }}</td>
+              <td>{{ s.operationDate }}</td>
+              <td>{{ s.operationTime }}</td>
+              <td>{{ s.operationType }}</td>
+              <td class="name" [title]="s.details">{{ s.name }}</td>
+              <td class="num">{{ s.amount | currency: (s.currency || 'PLN') : 'symbol-narrow' : '1.2-2' : 'pl' }}</td>
+              <td class="mono">{{ s.srcAccount }}</td>
+              <td class="mono">{{ s.dstAccount }}</td>
+              <td>{{ s.account }}</td>
+              <td>{{ s.category }}</td>
+              <td class="note" [title]="s.note">{{ s.note }}</td>
+              <td>{{ s.allegroRawEmailId ? '✓' : '' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>
