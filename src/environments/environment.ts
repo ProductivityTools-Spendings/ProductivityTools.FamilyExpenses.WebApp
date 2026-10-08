@@ -2,6 +2,6 @@ import { firebaseConfig } from './firebase.config';
 
 export const environment = {
   production: true,
-  apiUrl: 'http://34.116.163.207:8086',
+  apiUrl: 'hspendings-api.productivitytools.top',
   firebase: firebaseConfig,
 };
