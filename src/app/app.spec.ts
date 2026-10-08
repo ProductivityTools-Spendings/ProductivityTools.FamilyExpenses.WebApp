@@ -1,14 +1,28 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { App } from './app';
+import { AuthService } from './auth/auth.service';
 
 describe('App', () => {
+  const authStub = {
+    user: signal(null),
+    ready: () => Promise.resolve(),
+    isLoggedIn: () => false,
+    signOut: () => Promise.resolve(),
+  };
+
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: AuthService, useValue: authStub },
+      ],
     }).compileComponents();
   });
 

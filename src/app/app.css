@@ -32,3 +32,32 @@
   color: #fff;
   background: rgba(255, 255, 255, 0.15);
 }
+
+.app-header__user {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+  font-size: 0.9rem;
+}
+
+.app-header__email {
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.9;
+}
+
+.app-header__user button {
+  padding: 0.3rem 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 4px;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+}
+
+.app-header__user button:hover {
+  background: rgba(255, 255, 255, 0.15);
+}

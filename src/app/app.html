@@ -1,8 +1,16 @@
 <header class="app-header">
   <h1>{{ title() }}</h1>
   <nav>
-    <a routerLink="/spendings" routerLinkActive="active">Transakcje</a>
+    @if (user()) {
+      <a routerLink="/spendings" routerLinkActive="active">Transakcje</a>
+    }
   </nav>
+  <div class="app-header__user">
+    @if (user(); as u) {
+      <span class="app-header__email" [title]="u.email ?? ''">{{ u.email }}</span>
+      <button type="button" (click)="signOut()">Wyloguj</button>
+    }
+  </div>
 </header>
 
 <main>
