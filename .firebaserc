@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "ptprojectsweb"
+  },
+  "targets": {
+    "ptprojectsweb": {
+      "hosting": {
+        "pt-spendings": [
+          "pt-spendings"
+        ]
+      }
+    }
+  }
+}
