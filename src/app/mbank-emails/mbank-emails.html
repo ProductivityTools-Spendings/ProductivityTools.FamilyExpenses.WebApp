@@ -1,0 +1,63 @@
+<section class="emails">
+  <header class="emails__header">
+    <h2>E-maile mBank</h2>
+    <div class="emails__actions">
+      <span class="emails__count">
+        {{ emails().length }} e-maili
+        · <span class="badge badge--processed">PROCESSED {{ countByStatus('PROCESSED') }}</span>
+        <span class="badge badge--new">NEW {{ countByStatus('NEW') }}</span>
+        <span class="badge badge--error">ERROR {{ countByStatus('ERROR') }}</span>
+      </span>
+      <button type="button" (click)="load()" [disabled]="loading()">Odśwież</button>
+    </div>
+  </header>
+
+  @if (error()) {
+    <p class="emails__error">Błąd: {{ error() }}</p>
+  }
+
+  @if (loading()) {
+    <p class="emails__info">Ładowanie…</p>
+  } @else if (emails().length === 0) {
+    <p class="emails__info">Brak e-maili.</p>
+  } @else {
+    <div class="emails__table-wrapper">
+      <table class="emails__table">
+        <thead>
+          <tr>
+            <th>Id</th>
+            <th>Data e-maila</th>
+            <th>Temat</th>
+            <th>Załącznik</th>
+            <th>Status</th>
+            <th class="num">Transakcje</th>
+            <th class="num">Salda</th>
+            <th>Przetworzono</th>
+            <th>Błąd</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (e of emails(); track e.id) {
+            <tr [class.row--error]="e.status === 'ERROR'">
+              <td>{{ e.id }}</td>
+              <td>{{ e.emailDate | date: 'yyyy-MM-dd HH:mm' }}</td>
+              <td class="ellipsis" [title]="e.subject ?? ''">{{ e.subject }}</td>
+              <td class="ellipsis" [title]="e.attachmentName ?? ''">{{ e.attachmentName }}</td>
+              <td><span class="badge" [class]="'badge badge--' + e.status.toLowerCase()">{{ e.status }}</span></td>
+              <td class="num">{{ e.spendingsCount }}</td>
+              <td class="num">{{ e.balancesCount }}</td>
+              <td>{{ e.processedAt | date: 'yyyy-MM-dd HH:mm' }}</td>
+              <td class="ellipsis error-text" [title]="e.errorMessage ?? ''">{{ e.errorMessage }}</td>
+              <td>
+                <button type="button" class="secondary" (click)="download(e)" [disabled]="downloadingId() !== null">
+                  {{ downloadingId() === e.id ? 'Pobieranie…' : 'Pobierz' }}
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>

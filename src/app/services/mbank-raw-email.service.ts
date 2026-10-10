@@ -1,0 +1,52 @@
+import { HttpClient, HttpResponse } from '@angular/common/http';
+import { inject, Injectable } from '@angular/core';
+import { map, Observable } from 'rxjs';
+import { environment } from '../../environments/environment';
+import { MbankRawEmail } from '../models/mbank-raw-email';
+
+export interface DownloadedFile {
+  blob: Blob;
+  filename: string;
+}
+
+@Injectable({ providedIn: 'root' })
+export class MbankRawEmailService {
+  private readonly http = inject(HttpClient);
+  private readonly baseUrl = `${environment.apiUrl}/api/mbank-emails`;
+
+  getAll(): Observable<MbankRawEmail[]> {
+    return this.http.get<MbankRawEmail[]>(this.baseUrl);
+  }
+
+  /**
+   * Downloads the stored HTML attachment. Goes through HttpClient (not a plain link)
+   * so the auth interceptor can attach the bearer token.
+   */
+  download(id: number): Observable<DownloadedFile> {
+    return this.http
+      .get(`${this.baseUrl}/${id}/download`, { responseType: 'blob', observe: 'response' })
+      .pipe(
+        map((res: HttpResponse<Blob>) => ({
+          blob: res.body ?? new Blob(),
+          filename: extractFilename(res.headers.get('Content-Disposition')) ?? `mbank-email-${id}.html`,
+        })),
+      );
+  }
+}
+
+/** Parses `filename*=UTF-8''...` (preferred) or `filename="..."` from a Content-Disposition header. */
+function extractFilename(header: string | null): string | null {
+  if (!header) {
+    return null;
+  }
+  const utf8 = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  if (utf8) {
+    try {
+      return decodeURIComponent(utf8[1]);
+    } catch {
+      /* fall through */
+    }
+  }
+  const plain = /filename="?([^";]+)"?/i.exec(header);
+  return plain ? plain[1] : null;
+}

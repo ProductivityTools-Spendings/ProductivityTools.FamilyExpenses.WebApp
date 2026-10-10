@@ -1,0 +1,131 @@
+.emails {
+  padding: 1rem 1.5rem;
+}
+
+.emails__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.emails__header h2 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.emails__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.emails__count {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.emails__actions button,
+.emails__table button {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid #1976d2;
+  border-radius: 4px;
+  background: #1976d2;
+  color: #fff;
+  cursor: pointer;
+}
+
+.emails__table button {
+  padding: 0.25rem 0.7rem;
+  font-size: 0.8rem;
+}
+
+button.secondary {
+  background: #fff !important;
+  color: #1976d2 !important;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.emails__info {
+  color: #666;
+}
+
+.emails__error {
+  color: #c62828;
+}
+
+.emails__table-wrapper {
+  overflow-x: auto;
+}
+
+.emails__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.emails__table th,
+.emails__table td {
+  padding: 0.35rem 0.6rem;
+  border-bottom: 1px solid #e0e0e0;
+  text-align: left;
+}
+
+.emails__table thead th {
+  position: sticky;
+  top: 0;
+  background: #f5f5f5;
+  font-weight: 600;
+}
+
+.emails__table tbody tr:hover {
+  background: #fafafa;
+}
+
+tr.row--error {
+  background: #fff8f6;
+}
+
+.num {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.ellipsis {
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.error-text {
+  color: #c62828;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-right: 0.25rem;
+}
+
+.badge--processed {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.badge--new {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.badge--error {
+  background: #ffebee;
+  color: #c62828;
+}
