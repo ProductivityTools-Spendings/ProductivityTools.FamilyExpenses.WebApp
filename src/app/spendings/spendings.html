@@ -3,15 +3,21 @@
     <h2>Transakcje</h2>
     <div class="spendings__actions">
       <span class="spendings__count">{{ spendings().length }} pozycji</span>
-      <button type="button" class="secondary" (click)="processEmails()" [disabled]="processing() || loading()">
-        {{ processing() ? 'Przetwarzanie…' : 'Przetwórz e-maile' }}
+      <button type="button" class="secondary" (click)="processEmails()" [disabled]="busy">
+        {{ runningAction() === 'process' ? 'Przetwarzanie…' : 'Przetwórz e-maile' }}
       </button>
-      <button type="button" (click)="load()" [disabled]="loading() || processing()">Odśwież</button>
+      <button type="button" class="secondary" (click)="fillAccounts()" [disabled]="busy">
+        {{ runningAction() === 'fillAccounts' ? 'Uzupełnianie…' : 'Uzupełnij rachunki' }}
+      </button>
+      <button type="button" class="secondary" (click)="fillCategories()" [disabled]="busy">
+        {{ runningAction() === 'fillCategories' ? 'Uzupełnianie…' : 'Uzupełnij kategorie' }}
+      </button>
+      <button type="button" (click)="load()" [disabled]="busy">Odśwież</button>
     </div>
   </header>
 
-  @if (processingMessage(); as msg) {
-    <p class="spendings__status" [class.spendings__status--error]="processingFailed()">{{ msg }}</p>
+  @if (statusMessage(); as msg) {
+    <p class="spendings__status" [class.spendings__status--error]="statusFailed()">{{ msg }}</p>
   }
 
   @if (loading()) {

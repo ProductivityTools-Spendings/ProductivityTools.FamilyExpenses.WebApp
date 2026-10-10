@@ -1,8 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
+import { Observable } from 'rxjs';
 import { Spending } from '../models/spending';
-import { SpendingService } from '../services/spending.service';
+import { FillResult, SpendingService } from '../services/spending.service';
 import { EmailService, ProcessingResult } from '../services/email.service';
+
+type Action = 'process' | 'fillAccounts' | 'fillCategories';
 
 @Component({
   selector: 'app-spendings',
@@ -19,12 +22,17 @@ export class Spendings implements OnInit {
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
 
-  protected readonly processing = signal(false);
-  protected readonly processingMessage = signal<string | null>(null);
-  protected readonly processingFailed = signal(false);
+  /** Which maintenance action is currently running (null = none). */
+  protected readonly runningAction = signal<Action | null>(null);
+  protected readonly statusMessage = signal<string | null>(null);
+  protected readonly statusFailed = signal(false);
 
   ngOnInit(): void {
     this.load();
+  }
+
+  protected get busy(): boolean {
+    return this.loading() || this.runningAction() !== null;
   }
 
   protected load(): void {
@@ -44,27 +52,58 @@ export class Spendings implements OnInit {
 
   /** Triggers server-side processing of raw e-mails (NEW + ERROR), then refreshes the list. */
   protected processEmails(): void {
-    this.processing.set(true);
-    this.processingMessage.set(null);
-    this.processingFailed.set(false);
-    this.emailService.process().subscribe({
+    this.run('process', this.emailService.process(), (r) => ({
+      message: this.describeProcessing(r),
+      failed: !r.started,
+      reload: r.started,
+    }));
+  }
+
+  /** Fills missing accounts from dictionary_account. */
+  protected fillAccounts(): void {
+    this.run('fillAccounts', this.spendingService.fillAccounts(), (r) => ({
+      message: this.describeFill('rachunki', 'bez rachunku', r),
+      failed: false,
+      reload: r.updated > 0,
+    }));
+  }
+
+  /** Fills missing categories from account rules and dictionary_category_mapping. */
+  protected fillCategories(): void {
+    this.run('fillCategories', this.spendingService.fillCategories(), (r) => ({
+      message: this.describeFill('kategorie', 'bez kategorii', r),
+      failed: false,
+      reload: r.updated > 0,
+    }));
+  }
+
+  private run<T>(
+    action: Action,
+    request: Observable<T>,
+    describe: (result: T) => { message: string; failed: boolean; reload: boolean },
+  ): void {
+    this.runningAction.set(action);
+    this.statusMessage.set(null);
+    this.statusFailed.set(false);
+    request.subscribe({
       next: (result) => {
-        this.processingMessage.set(this.describe(result));
-        this.processingFailed.set(!result.started);
-        this.processing.set(false);
-        if (result.started) {
+        const { message, failed, reload } = describe(result);
+        this.statusMessage.set(message);
+        this.statusFailed.set(failed);
+        this.runningAction.set(null);
+        if (reload) {
           this.load();
         }
       },
       error: (err) => {
-        this.processingMessage.set(err?.message ?? 'Przetwarzanie nie powiodło się.');
-        this.processingFailed.set(true);
-        this.processing.set(false);
+        this.statusMessage.set(err?.message ?? 'Operacja nie powiodła się.');
+        this.statusFailed.set(true);
+        this.runningAction.set(null);
       },
     });
   }
 
-  private describe(r: ProcessingResult): string {
+  private describeProcessing(r: ProcessingResult): string {
     if (!r.started) {
       return `Przetwarzanie już trwa w tle – spróbuj za chwilę (oczekujące: ${r.remainingNew}).`;
     }
@@ -79,5 +118,9 @@ export class Spendings implements OnInit {
       parts.push(`oczekujące ${r.remainingNew}`);
     }
     return `Gotowe: ${parts.join(', ')}.`;
+  }
+
+  private describeFill(what: string, missingLabel: string, r: FillResult): string {
+    return `Uzupełniono ${what}: ${r.updated}. Nadal ${missingLabel}: ${r.remainingEmpty}.`;
   }
 }
