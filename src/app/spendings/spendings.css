@@ -39,6 +39,25 @@
   cursor: default;
 }
 
+.spendings__actions button.secondary {
+  background: #fff;
+  color: #1976d2;
+}
+
+.spendings__status {
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  background: #e8f5e9;
+  color: #2e7d32;
+  font-size: 0.9rem;
+}
+
+.spendings__status--error {
+  background: #fff3e0;
+  color: #e65100;
+}
+
 .spendings__info {
   color: #666;
 }
