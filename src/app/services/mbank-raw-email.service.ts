@@ -9,6 +9,16 @@ export interface DownloadedFile {
   filename: string;
 }
 
+/** Saves a downloaded blob through a temporary object URL. */
+export function saveDownloadedFile({ blob, filename }: DownloadedFile): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 @Injectable({ providedIn: 'root' })
 export class MbankRawEmailService {
   private readonly http = inject(HttpClient);
@@ -35,7 +45,7 @@ export class MbankRawEmailService {
 }
 
 /** Parses `filename*=UTF-8''...` (preferred) or `filename="..."` from a Content-Disposition header. */
-function extractFilename(header: string | null): string | null {
+export function extractFilename(header: string | null): string | null {
   if (!header) {
     return null;
   }

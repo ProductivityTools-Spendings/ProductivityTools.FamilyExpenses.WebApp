@@ -1,0 +1,67 @@
+<section class="auths">
+  <header class="auths__header">
+    <h2>Zakupy Allegro</h2>
+    <div class="auths__actions">
+      <span class="auths__count">
+        {{ visible().length }} pozycji ·
+        <button type="button" class="chip" [class.chip--active]="filter() === 'all'" (click)="setFilter('all')">wszystkie {{ purchases().length }}</button>
+        <button type="button" class="chip chip--ok" [class.chip--active]="filter() === 'linked'" (click)="setFilter('linked')">powiązane {{ linkedCount() }}</button>
+        <button type="button" class="chip chip--warn" [class.chip--active]="filter() === 'unlinked'" (click)="setFilter('unlinked')">bez transakcji {{ unlinkedCount() }}</button>
+      </span>
+      <button type="button" (click)="load()" [disabled]="loading()">Odśwież</button>
+    </div>
+  </header>
+
+  @if (loading()) {
+    <p class="auths__info">Ładowanie…</p>
+  } @else if (error()) {
+    <p class="auths__error">Błąd: {{ error() }}</p>
+  } @else if (visible().length === 0) {
+    <p class="auths__info">Brak zakupów.</p>
+  } @else {
+    <div class="auths__table-wrapper">
+      <table class="auths__table">
+        <thead>
+          <tr>
+            <th>Id</th>
+            <th>Data zakupu</th>
+            <th>E-mail</th>
+            <th>Przedmiot</th>
+            <th class="num">Ilość</th>
+            <th class="num">Cena poz.</th>
+            <th class="num">Zamówienie</th>
+            <th>Transakcja mBank</th>
+            <th>Kategoria</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of visible(); track p.id; let i = $index) {
+            <tr [class.unlinked]="p.spendingId === null" [class.order-start]="isFirstOfOrder(i)">
+              <td>{{ p.id }}</td>
+              <td>{{ p.purchaseDate }}</td>
+              <td class="mono" [title]="p.emailSubject ?? ''">#{{ p.allegroRawEmailId }}</td>
+              <td class="merchant" [title]="p.itemName">{{ p.itemName }}</td>
+              <td class="num muted">{{ p.itemCount }}</td>
+              <td class="num">{{ p.itemCost | currency: 'PLN' : 'symbol-narrow' : '1.2-2' : 'pl' }}</td>
+              <td class="num">
+                @if (isFirstOfOrder(i)) {
+                  <strong>{{ p.fullPrice | currency: 'PLN' : 'symbol-narrow' : '1.2-2' : 'pl' }}</strong>
+                }
+              </td>
+              <td>
+                @if (p.spendingId !== null) {
+                  <span class="badge badge--ok" [title]="(p.spendingName ?? '') + ' · ' + p.spendingAmount">
+                    #{{ p.spendingId }} · {{ p.spendingDate }}
+                  </span>
+                } @else {
+                  <span class="badge badge--warn">brak</span>
+                }
+              </td>
+              <td>{{ p.spendingCategory }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>

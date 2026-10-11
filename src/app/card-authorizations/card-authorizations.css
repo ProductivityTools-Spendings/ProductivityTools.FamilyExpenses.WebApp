@@ -163,3 +163,8 @@ tr.unlinked {
   background: #fff3e0;
   color: #e65100;
 }
+
+/* Allegro purchases: visual separator between orders */
+tr.order-start td {
+  border-top: 2px solid #cfd8dc;
+}

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { MbankRawEmail } from '../models/mbank-raw-email';
-import { MbankRawEmailService } from '../services/mbank-raw-email.service';
+import { MbankRawEmailService, saveDownloadedFile } from '../services/mbank-raw-email.service';
 
 @Component({
   selector: 'app-mbank-emails',
@@ -41,13 +41,8 @@ export class MbankEmails implements OnInit {
   protected download(email: MbankRawEmail): void {
     this.downloadingId.set(email.id);
     this.service.download(email.id).subscribe({
-      next: ({ blob, filename }) => {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        a.click();
-        URL.revokeObjectURL(url);
+      next: (file) => {
+        saveDownloadedFile(file);
         this.downloadingId.set(null);
       },
       error: (err) => {
