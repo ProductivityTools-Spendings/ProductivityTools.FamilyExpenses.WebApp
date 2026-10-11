@@ -1,0 +1,287 @@
+.reports {
+  padding: 1rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.reports__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.reports__header h2 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.reports__filters {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.reports__filters label,
+.inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+input[type='month'],
+select {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #bdbdbd;
+  border-radius: 4px;
+  font: inherit;
+}
+
+button {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid #1976d2;
+  border-radius: 4px;
+  background: #1976d2;
+  color: #fff;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+button.link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: #1976d2;
+  text-decoration: underline;
+}
+
+.reports__rules {
+  margin: -0.5rem 0 0;
+  color: #777;
+  font-size: 0.85rem;
+}
+
+.reports__error {
+  color: #c62828;
+}
+
+code {
+  font-size: 0.85em;
+  background: #f1f1f1;
+  padding: 0 0.3em;
+  border-radius: 3px;
+}
+
+/* cards */
+.card {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  background: #fff;
+}
+
+.card h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+}
+
+.card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.card__head h3 {
+  margin: 0;
+}
+
+.muted {
+  color: #777;
+  font-size: 0.85rem;
+}
+
+.chip {
+  display: inline-block;
+  margin: 0.15rem 0.25rem 0 0;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: #fff3e0;
+  color: #e65100;
+  font-size: 0.78rem;
+}
+
+.chip--muted {
+  background: #eeeeee;
+  color: #757575;
+}
+
+/* hygiene counters */
+.counters {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.6rem;
+}
+
+.counter {
+  display: flex;
+  flex-direction: column;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  text-decoration: none;
+  color: inherit;
+  background: #fafafa;
+}
+
+.counter:hover {
+  background: #f0f7ff;
+}
+
+.counter strong {
+  font-size: 1.4rem;
+  line-height: 1.2;
+}
+
+.counter span {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.counter--warn {
+  border-color: #ffcc80;
+  background: #fff8f1;
+}
+
+.counter--error {
+  border-color: #ef9a9a;
+  background: #fff5f5;
+}
+
+details {
+  margin-top: 0.75rem;
+}
+
+summary {
+  cursor: pointer;
+  color: #1976d2;
+  font-size: 0.9rem;
+}
+
+/* tables */
+.scroll {
+  overflow-x: auto;
+}
+
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.tbl th,
+.tbl td {
+  padding: 0.3rem 0.55rem;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+}
+
+.tbl thead th {
+  background: #f5f5f5;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+}
+
+.tbl tfoot th {
+  background: #fafafa;
+  border-top: 2px solid #ddd;
+}
+
+.tbl--compact td {
+  padding: 0.2rem 0.5rem;
+}
+
+.num {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+}
+
+.pos {
+  color: #2e7d32;
+}
+
+.neg {
+  color: #c62828;
+}
+
+.worse {
+  color: #c62828;
+}
+
+.better {
+  color: #2e7d32;
+}
+
+.ellipsis {
+  max-width: 22rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+tr.inactive {
+  opacity: 0.55;
+}
+
+/* pivot */
+.tbl--pivot .sticky {
+  position: sticky;
+  left: 0;
+  background: #fff;
+  z-index: 1;
+}
+
+.tbl--pivot thead .sticky,
+.tbl--pivot tfoot .sticky {
+  background: #f5f5f5;
+}
+
+.tbl--pivot .total {
+  background: #fafafa;
+  font-weight: 600;
+}
+
+.tbl--pivot td.heat {
+  background: rgba(25, 118, 210, calc(var(--heat, 0) * 0.55));
+}
+
+/* cashflow bars */
+.bars {
+  width: 30%;
+  min-width: 10rem;
+}
+
+.bar {
+  height: 6px;
+  border-radius: 3px;
+  margin: 2px 0;
+}
+
+.bar--in {
+  background: #66bb6a;
+}
+
+.bar--out {
+  background: #ef5350;
+}

@@ -1,0 +1,230 @@
+<section class="reports">
+  <header class="reports__header">
+    <h2>Raporty</h2>
+    <form class="reports__filters" (ngSubmit)="load()">
+      <label>Od <input type="month" name="from" [(ngModel)]="from" required /></label>
+      <label>Do <input type="month" name="to" [(ngModel)]="to" required /></label>
+      <button type="submit" [disabled]="loading()">{{ loading() ? 'Ładowanie…' : 'Pokaż' }}</button>
+    </form>
+  </header>
+
+  <p class="reports__rules">
+    Bez duplikatów, bez <code>PrzelewWlasny</code> i przewalutowań (<code>*.NAT.TR.FX</code>); kwoty w PLN (kurs NBP D‑1).
+  </p>
+
+  @if (error()) {
+    <p class="reports__error">Błąd: {{ error() }}</p>
+  }
+
+  <!-- ============ 6. Higiena danych ============ -->
+  @if (hygiene(); as h) {
+    <section class="card">
+      <h3>Do uporządkowania</h3>
+      <div class="counters">
+        <a class="counter" [class.counter--warn]="h.uncategorized > 0" routerLink="/spendings">
+          <strong>{{ h.uncategorized }}</strong><span>transakcji bez kategorii</span>
+        </a>
+        <a class="counter" [class.counter--warn]="h.withoutAccount > 0" routerLink="/dictionary/accounts">
+          <strong>{{ h.withoutAccount }}</strong><span>transakcji bez konta</span>
+        </a>
+        <a class="counter" [class.counter--warn]="h.unmappedAccounts > 0" routerLink="/dictionary/accounts">
+          <strong>{{ h.unmappedAccounts }}</strong><span>rachunków bez nazwy</span>
+        </a>
+        <a class="counter" [class.counter--warn]="h.withoutPln > 0" routerLink="/spendings">
+          <strong>{{ h.withoutPln }}</strong><span>bez kwoty PLN</span>
+        </a>
+        <a class="counter" routerLink="/card-authorizations">
+          <strong>{{ h.unlinkedAuthorizations }}</strong><span>autoryzacji bez obciążenia</span>
+        </a>
+        <a class="counter" routerLink="/allegro/emails">
+          <strong>{{ h.allegroEmailsWithoutSpending }}</strong><span>maili Allegro bez transakcji</span>
+        </a>
+        <a class="counter" [class.counter--error]="h.emailsInError > 0" routerLink="/emails">
+          <strong>{{ h.emailsInError }}</strong><span>maili z błędem</span>
+        </a>
+        <a class="counter" routerLink="/spendings">
+          <strong>{{ h.duplicates }}</strong><span>oznaczonych duplikatów</span>
+        </a>
+      </div>
+      @if (h.proxyCategories.length > 0) {
+        <p class="muted">Kategorie tymczasowe (<code>Proxy*</code>):
+          @for (p of h.proxyCategories; track p.category) {
+            <span class="chip">{{ p.category }} · {{ p.count }} · {{ p.total | currency: 'PLN' : 'symbol-narrow' : '1.0-0' : 'pl' }}</span>
+          }
+        </p>
+      }
+      @if (h.uncategorizedSample.length > 0) {
+        <details>
+          <summary>Ostatnie transakcje bez kategorii ({{ h.uncategorizedSample.length }} z {{ h.uncategorized }})</summary>
+          <table class="tbl tbl--compact">
+            <tbody>
+              @for (u of h.uncategorizedSample; track u.id) {
+                <tr><td>#{{ u.id }}</td><td>{{ u.operationDate }}</td><td>{{ u.operationType }}</td><td class="ellipsis">{{ u.name }}</td>
+                    <td class="num">{{ u.amountPln | currency: 'PLN' : 'symbol-narrow' : '1.2-2' : 'pl' }}</td></tr>
+              }
+            </tbody>
+          </table>
+        </details>
+      }
+    </section>
+  }
+
+  <!-- ============ 2. Cash flow ============ -->
+  <section class="card">
+    <div class="card__head">
+      <h3>Przepływ miesięczny</h3>
+      <label class="inline">Konto
+        <select [ngModel]="cashflowAccount()" (ngModelChange)="setCashflowAccount($event)" name="cashflowAccount">
+          <option value="*">wszystkie</option>
+          @for (a of cashflowAccounts(); track a) { <option [value]="a">{{ a }}</option> }
+        </select>
+      </label>
+    </div>
+    <table class="tbl">
+      <thead><tr><th>Miesiąc</th><th class="num">Przychody</th><th class="num">Wydatki</th><th class="num">Netto</th><th class="bars"></th></tr></thead>
+      <tbody>
+        @for (r of cashflowRows(); track r.month) {
+          <tr>
+            <td>{{ r.month }}</td>
+            <td class="num pos">{{ r.income | currency: 'PLN' : 'symbol-narrow' : '1.0-0' : 'pl' }}</td>
+            <td class="num neg">{{ r.expenses | currency: 'PLN' : 'symbol-narrow' : '1.0-0' : 'pl' }}</td>
+            <td class="num" [class.pos]="r.net >= 0" [class.neg]="r.net < 0"><strong>{{ r.net | currency: 'PLN' : 'symbol-narrow' : '1.0-0' : 'pl' }}</strong></td>
+            <td class="bars">
+              <div class="bar bar--in" [style.width]="barWidth(r.income, cashflowMax())"></div>
+              <div class="bar bar--out" [style.width]="barWidth(r.expenses, cashflowMax())"></div>
+            </td>
+          </tr>
+        }
+      </tbody>
+      <tfoot>
+        <tr>
+          <th>Razem</th>
+          <th class="num pos">{{ cashflowTotals().income | currency: 'PLN' : 'symbol-narrow' : '1.0-0' : 'pl' }}</th>
+          <th class="num neg">{{ cashflowTotals().expenses | currency: 'PLN' : 'symbol-narrow' : '1.0-0' : 'pl' }}</th>
+          <th class="num" [class.pos]="cashflowTotals().net >= 0" [class.neg]="cashflowTotals().net < 0">{{ cashflowTotals().net | currency: 'PLN' : 'symbol-narrow' : '1.0-0' : 'pl' }}</th>
+          <th></th>
+        </tr>
+      </tfoot>
+    </table>
+  </section>
+
+  <!-- ============ 1. Kategorie × miesiące ============ -->
+  <section class="card">
+    <h3>Wydatki wg kategorii</h3>
+    <div class="scroll">
+      <table class="tbl tbl--pivot">
+        <thead>
+          <tr>
+            <th class="sticky">Kategoria</th>
+            @for (m of months(); track m) { <th class="num">{{ m }}</th> }
+            <th class="num total">Razem</th>
+            <th class="num total">Śr./mies.</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of pivot(); track r.category) {
+            <tr>
+              <td class="sticky">{{ r.category }}</td>
+              @for (m of months(); track m) {
+                <td class="num heat" [style.--heat]="(r.byMonth[m] ? (-r.byMonth[m] / pivotMax()) : 0)">
+                  @if (r.byMonth[m]) { {{ -r.byMonth[m] | number: '1.0-0' : 'pl' }} }
+                </td>
+              }
+              <td class="num total">{{ -r.total | number: '1.0-0' : 'pl' }}</td>
+              <td class="num total">{{ -r.avg | number: '1.0-0' : 'pl' }}</td>
+            </tr>
+          }
+        </tbody>
+        <tfoot>
+          <tr>
+            <th class="sticky">Razem</th>
+            @for (m of months(); track m) { <th class="num">{{ -(pivotMonthTotals()[m] || 0) | number: '1.0-0' : 'pl' }}</th> }
+            <th class="num total">{{ -pivotGrandTotal() | number: '1.0-0' : 'pl' }}</th>
+            <th class="num total">{{ months().length ? -pivotGrandTotal() / months().length : 0 | number: '1.0-0' : 'pl' }}</th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <p class="muted">Wartości w PLN (wydatki jako liczby dodatnie). Intensywność tła = wielkość wydatku.</p>
+  </section>
+
+  <!-- ============ 4. Porównanie okresów ============ -->
+  <section class="card">
+    <div class="card__head">
+      <h3>Porównanie okresów</h3>
+      <label class="inline">Miesiąc <input type="month" name="compareMonth" [(ngModel)]="compareMonth" (change)="reloadCompare()" /></label>
+    </div>
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>Kategoria</th>
+          <th class="num">{{ compareMonth }}</th>
+          <th class="num">{{ comparePrevMonth }}</th>
+          <th class="num">Δ m/m</th>
+          <th class="num">{{ compareYearMonth }}</th>
+          <th class="num">Δ r/r</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (r of compareRows(); track r.category) {
+          <tr>
+            <td>{{ r.category }}</td>
+            <td class="num">{{ -r.current | number: '1.0-0' : 'pl' }}</td>
+            <td class="num muted">{{ -r.previous | number: '1.0-0' : 'pl' }}</td>
+            <td class="num" [class.worse]="(r.deltaPrev ?? 0) < -1" [class.better]="(r.deltaPrev ?? 0) > 1">
+              {{ -(r.deltaPrev ?? 0) | number: '1.0-0' : 'pl' }}
+              @if (r.deltaPrevPct !== null) { <small>({{ pctLabel(r.deltaPrevPct) }})</small> }
+            </td>
+            <td class="num muted">{{ -r.lastYear | number: '1.0-0' : 'pl' }}</td>
+            <td class="num" [class.worse]="(r.deltaYear ?? 0) < -1" [class.better]="(r.deltaYear ?? 0) > 1">
+              {{ -(r.deltaYear ?? 0) | number: '1.0-0' : 'pl' }}
+              @if (r.deltaYearPct !== null) { <small>({{ pctLabel(r.deltaYearPct) }})</small> }
+            </td>
+          </tr>
+        }
+      </tbody>
+      <tfoot>
+        <tr>
+          <th>Razem</th>
+          <th class="num">{{ -compareTotals().current | number: '1.0-0' : 'pl' }}</th>
+          <th class="num">{{ -compareTotals().previous | number: '1.0-0' : 'pl' }}</th>
+          <th class="num" [class.worse]="(compareTotals().deltaPrev ?? 0) < -1" [class.better]="(compareTotals().deltaPrev ?? 0) > 1">{{ -(compareTotals().deltaPrev ?? 0) | number: '1.0-0' : 'pl' }}</th>
+          <th class="num">{{ -compareTotals().lastYear | number: '1.0-0' : 'pl' }}</th>
+          <th class="num" [class.worse]="(compareTotals().deltaYear ?? 0) < -1" [class.better]="(compareTotals().deltaYear ?? 0) > 1">{{ -(compareTotals().deltaYear ?? 0) | number: '1.0-0' : 'pl' }}</th>
+        </tr>
+      </tfoot>
+    </table>
+    <p class="muted">Wydatki jako liczby dodatnie; Δ = ile więcej (czerwone) / mniej (zielone) niż w okresie odniesienia.</p>
+  </section>
+
+  <!-- ============ 8. Cykliczne zobowiązania ============ -->
+  <section class="card">
+    <div class="card__head">
+      <h3>Cykliczne przelewy</h3>
+      <span class="muted">
+        Suma mies. (śr. z 12 mies.): <strong>{{ -recurringMonthlyTotal() | currency: 'PLN' : 'symbol-narrow' : '1.0-0' : 'pl' }}</strong>
+        · <button type="button" class="link" (click)="toggleInactive()">{{ showInactive() ? 'ukryj nieaktywne' : 'pokaż nieaktywne' }}</button>
+      </span>
+    </div>
+    <table class="tbl">
+      <thead>
+        <tr><th>Odbiorca</th><th>Kategoria</th><th class="num">Ostatnia</th><th class="num">Śr. mies.</th><th class="num">Min–max</th><th class="num">Ile razy</th><th>Ostatnio</th><th></th></tr>
+      </thead>
+      <tbody>
+        @for (r of recurringRows(); track r.payee + r.dstAccount) {
+          <tr [class.inactive]="!r.active">
+            <td class="ellipsis" [title]="r.dstAccount">{{ r.payee }}</td>
+            <td>{{ r.category }}</td>
+            <td class="num">{{ -r.lastAmount | number: '1.0-0' : 'pl' }}</td>
+            <td class="num"><strong>{{ -r.monthlyAvg12m | number: '1.0-0' : 'pl' }}</strong></td>
+            <td class="num muted">{{ -r.maxAmount | number: '1.0-0' : 'pl' }}–{{ -r.minAmount | number: '1.0-0' : 'pl' }}</td>
+            <td class="num">{{ r.occurrences }} / {{ r.months }} mies.</td>
+            <td>{{ r.lastDate }}</td>
+            <td>@if (!r.active) { <span class="chip chip--muted">nieaktywne</span> }</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+    <p class="muted">Przelewy wychodzące do tego samego odbiorcy i rachunku w ≥ 3 różnych miesiącach. „Nieaktywne” = brak płatności od 45 dni.</p>
+  </section>
+</section>
