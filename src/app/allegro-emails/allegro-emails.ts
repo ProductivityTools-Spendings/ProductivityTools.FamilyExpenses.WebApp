@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { AllegroRawEmail, AllegroService } from '../services/allegro.service';
-import { saveDownloadedFile } from '../services/mbank-raw-email.service';
+import { openPreviewWindow, showHtmlInWindow } from '../services/mbank-raw-email.service';
 
 @Component({
   selector: 'app-allegro-emails',
@@ -37,15 +37,18 @@ export class AllegroEmails implements OnInit {
     });
   }
 
-  protected download(email: AllegroRawEmail): void {
+  /** Opens the stored e-mail HTML in a new tab (fetched with the auth token, then shown via an object URL). */
+  protected show(email: AllegroRawEmail): void {
+    const preview = openPreviewWindow();
     this.downloadingId.set(email.id);
     this.service.downloadEmail(email.id).subscribe({
       next: (file) => {
-        saveDownloadedFile(file);
+        showHtmlInWindow(preview, file.blob);
         this.downloadingId.set(null);
       },
       error: (err) => {
-        this.error.set(err?.message ?? 'Pobieranie nie powiodło się.');
+        preview?.close();
+        this.error.set(err?.message ?? 'Nie udało się otworzyć e-maila.');
         this.downloadingId.set(null);
       },
     });

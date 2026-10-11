@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { MbankRawEmail } from '../models/mbank-raw-email';
-import { MbankRawEmailService, saveDownloadedFile } from '../services/mbank-raw-email.service';
+import { MbankRawEmailService, openPreviewWindow, showHtmlInWindow } from '../services/mbank-raw-email.service';
 
 @Component({
   selector: 'app-mbank-emails',
@@ -38,15 +38,18 @@ export class MbankEmails implements OnInit {
     });
   }
 
-  protected download(email: MbankRawEmail): void {
+  /** Opens the stored e-mail HTML in a new tab (fetched with the auth token, then shown via an object URL). */
+  protected show(email: MbankRawEmail): void {
+    const preview = openPreviewWindow();
     this.downloadingId.set(email.id);
     this.service.download(email.id).subscribe({
       next: (file) => {
-        saveDownloadedFile(file);
+        showHtmlInWindow(preview, file.blob);
         this.downloadingId.set(null);
       },
       error: (err) => {
-        this.error.set(err?.message ?? 'Pobieranie nie powiodło się.');
+        preview?.close();
+        this.error.set(err?.message ?? 'Nie udało się otworzyć e-maila.');
         this.downloadingId.set(null);
       },
     });

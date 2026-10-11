@@ -50,8 +50,8 @@
               <td>{{ e.processedAt | date: 'yyyy-MM-dd HH:mm' }}</td>
               <td class="ellipsis error-text" [title]="e.errorMessage ?? ''">{{ e.errorMessage }}</td>
               <td>
-                <button type="button" class="secondary" (click)="download(e)" [disabled]="downloadingId() !== null">
-                  {{ downloadingId() === e.id ? 'Pobieranie…' : 'Pobierz' }}
+                <button type="button" class="secondary" (click)="show(e)" [disabled]="downloadingId() !== null">
+                  {{ downloadingId() === e.id ? 'Otwieranie…' : 'Wyświetl' }}
                 </button>
               </td>
             </tr>
