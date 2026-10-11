@@ -2,9 +2,9 @@
   <h1>{{ title() }}</h1>
   <nav>
     @if (user()) {
+      <a routerLink="/emails" routerLinkActive="active">E-maile mBank</a>
       <a routerLink="/spendings" routerLinkActive="active">Transakcje</a>
       <a routerLink="/card-authorizations" routerLinkActive="active">Autoryzacje kart</a>
-      <a routerLink="/emails" routerLinkActive="active">E-maile mBank</a>
       <a routerLink="/dictionary/accounts" routerLinkActive="active">Słownik rachunków</a>
     }
   </nav>
