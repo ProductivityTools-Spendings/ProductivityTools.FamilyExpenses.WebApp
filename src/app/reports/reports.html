@@ -157,6 +157,55 @@
     }
   </section>
 
+  <!-- ============ MAT 12 miesięcy ============ -->
+  <section class="card">
+    <div class="card__head">
+      <h3>MAT – suma krocząca 12 miesięcy</h3>
+      <span class="muted">
+        <button type="button" class="link" (click)="matSetAll(true)">wszystkie</button> ·
+        <button type="button" class="link" (click)="matSetAll(false)">żadna</button>
+      </span>
+    </div>
+    <div class="mat-cats">
+      @for (c of matCategories(); track c) {
+        <label class="mat-cat" [class.mat-cat--off]="!matIncluded(c)">
+          <input type="checkbox" [checked]="matIncluded(c)" (change)="toggleMatCategory(c)" /> {{ c }}
+        </label>
+      }
+    </div>
+
+    @if (matRows().length > 0) {
+      <svg class="mat-chart" [attr.viewBox]="'0 0 ' + chartW + ' ' + chartH" preserveAspectRatio="none" role="img" aria-label="Wykres MAT">
+        @for (t of matTicks(); track t.y) {
+          <line [attr.x1]="chartPad.l" [attr.x2]="chartW - chartPad.r" [attr.y1]="t.y" [attr.y2]="t.y" class="grid" />
+          <text [attr.x]="chartPad.l - 8" [attr.y]="t.y + 4" class="ylabel">{{ t.value | number: '1.0-0' : 'pl' }}</text>
+        }
+        @for (r of matRows(); track r.month; let i = $index) {
+          <rect class="mbar" [attr.x]="chartX(i) - 6" [attr.width]="12" [attr.y]="chartY(r.monthly)" [attr.height]="barHeight(r.monthly)">
+            <title>{{ r.month }}: miesiąc {{ r.monthly | number: '1.0-0' : 'pl' }} zł</title>
+          </rect>
+        }
+        <path class="mat-line" [attr.d]="matPath()" />
+        @for (r of matRows(); track r.month; let i = $index) {
+          <circle class="mat-dot" [attr.cx]="chartX(i)" [attr.cy]="chartY(r.mat)" r="4">
+            <title>{{ r.month }}: MAT {{ r.mat | number: '1.0-0' : 'pl' }} zł</title>
+          </circle>
+          <text class="xlabel" [attr.x]="chartX(i)" [attr.y]="chartH - 12" text-anchor="middle">{{ r.month.slice(2) }}</text>
+        }
+      </svg>
+      <div class="scroll">
+        <table class="tbl tbl--compact">
+          <thead><tr><th>Miesiąc</th>@for (r of matRows(); track r.month) { <th class="num">{{ r.month }}</th> }</tr></thead>
+          <tbody>
+            <tr><td>Miesiąc</td>@for (r of matRows(); track r.month) { <td class="num muted">{{ r.monthly | number: '1.0-0' : 'pl' }}</td> }</tr>
+            <tr><td><strong>MAT 12 m.</strong></td>@for (r of matRows(); track r.month) { <td class="num"><strong>{{ r.mat | number: '1.0-0' : 'pl' }}</strong></td> }</tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted">Linia = suma netto z ostatnich 12 miesięcy (kończących się w danym miesiącu) dla zaznaczonych kategorii; słupki = pojedyncze miesiące. Wybór kategorii jest zapamiętywany niezależnie od tabeli powyżej.</p>
+    }
+  </section>
+
   <!-- ============ 8. Cykliczne zobowiązania ============ -->
   <section class="card">
     <div class="card__head">

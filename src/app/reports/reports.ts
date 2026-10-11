@@ -50,6 +50,8 @@ export class Reports implements OnInit {
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly categoryData = signal<CategoryMonth[]>([]);
+  /** Range extended by 11 months backwards so that every month in the range has a full 12-month window. */
+  protected readonly matData = signal<CategoryMonth[]>([]);
   protected readonly recurring = signal<RecurringPayment[]>([]);
   protected readonly hygiene = signal<Hygiene | null>(null);
 
@@ -158,6 +160,82 @@ export class Reports implements OnInit {
     return `${d.category ?? 'Wszystkie kategorie'} · ${period}`;
   }
 
+  // --- MAT: moving annual total --------------------------------------------
+  private static readonly MAT_EXCLUDED_KEY = 'reports.mat.excludedCategories';
+  protected readonly matExcluded = signal<Set<string>>(new Set(JSON.parse(localStorage.getItem(Reports.MAT_EXCLUDED_KEY) ?? '[]')));
+
+  /** All categories present in the loaded MAT window, sorted by total spend. */
+  protected readonly matCategories = computed(() => {
+    const totals = new Map<string, number>();
+    for (const r of this.matData()) totals.set(r.category, (totals.get(r.category) ?? 0) + r.total);
+    return [...totals.entries()].sort((a, b) => a[1] - b[1]).map(([c]) => c);
+  });
+
+  protected matIncluded(category: string): boolean {
+    return !this.matExcluded().has(category);
+  }
+
+  protected toggleMatCategory(category: string): void {
+    this.matExcluded.update((set) => {
+      const next = new Set(set);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      localStorage.setItem(Reports.MAT_EXCLUDED_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }
+
+  protected matSetAll(include: boolean): void {
+    this.matExcluded.update(() => {
+      const next = include ? new Set<string>() : new Set(this.matCategories());
+      localStorage.setItem(Reports.MAT_EXCLUDED_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }
+
+  /** Per displayed month: that month's net total and the rolling 12-month total (both over included categories). */
+  protected readonly matRows = computed<{ month: string; monthly: number; mat: number }[]>(() => {
+    const excluded = this.matExcluded();
+    const byMonth = new Map<string, number>();
+    for (const r of this.matData()) {
+      if (excluded.has(r.category)) continue;
+      byMonth.set(r.month, (byMonth.get(r.month) ?? 0) + r.total);
+    }
+    return this.months().map((m) => {
+      let mat = 0;
+      for (let i = 0; i < 12; i++) mat += byMonth.get(shiftMonth(m, -i)) ?? 0;
+      return { month: m, monthly: byMonth.get(m) ?? 0, mat };
+    });
+  });
+
+  // SVG chart geometry
+  protected readonly chartW = 900;
+  protected readonly chartH = 260;
+  protected readonly chartPad = { l: 70, r: 16, t: 12, b: 36 };
+
+  protected readonly matMax = computed(() => Math.max(1, ...this.matRows().map((r) => Math.abs(r.mat))));
+
+  protected chartX(i: number): number {
+    const n = Math.max(1, this.matRows().length - 1);
+    return this.chartPad.l + (i * (this.chartW - this.chartPad.l - this.chartPad.r)) / n;
+  }
+
+  protected chartY(value: number): number {
+    const h = this.chartH - this.chartPad.t - this.chartPad.b;
+    return this.chartPad.t + h - (Math.abs(value) / this.matMax()) * h;
+  }
+
+  protected readonly matPath = computed(() =>
+    this.matRows().map((r, i) => `${i === 0 ? 'M' : 'L'}${this.chartX(i).toFixed(1)},${this.chartY(r.mat).toFixed(1)}`).join(' '),
+  );
+
+  /** Y-axis gridlines (4 steps). */
+  protected readonly matTicks = computed(() => [0, 0.25, 0.5, 0.75, 1].map((f) => ({ y: this.chartY(f * this.matMax()), value: -f * this.matMax() })));
+
+  protected barHeight(value: number): number {
+    return this.chartH - this.chartPad.b - this.chartY(value);
+  }
+
   // --- report 8: recurring ------------------------------------------------
   protected readonly showInactive = signal(false);
   protected readonly recurringRows = computed(() =>
@@ -181,11 +259,13 @@ export class Reports implements OnInit {
     this.error.set(null);
     forkJoin({
       categories: this.service.categoryMonthly(this.from, this.to),
+      mat: this.service.categoryMonthly(shiftMonth(this.from, -11), this.to),
       recurring: this.service.recurring(3),
       hygiene: this.service.hygiene(),
     }).subscribe({
-      next: ({ categories, recurring, hygiene }) => {
+      next: ({ categories, mat, recurring, hygiene }) => {
         this.categoryData.set(categories);
+        this.matData.set(mat);
         this.recurring.set(recurring);
         this.hygiene.set(hygiene);
         this.loading.set(false);

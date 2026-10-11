@@ -363,3 +363,61 @@ td.selected {
 .tbl--pivot tr.excluded td.check {
   background: #f3f3f3;
 }
+
+/* MAT */
+.mat-cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.9rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.mat-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+}
+
+.mat-cat--off {
+  color: #9e9e9e;
+  text-decoration: line-through;
+}
+
+.mat-chart {
+  width: 100%;
+  height: 260px;
+  display: block;
+  margin-bottom: 0.75rem;
+}
+
+.mat-chart .grid {
+  stroke: #e0e0e0;
+  stroke-width: 1;
+}
+
+.mat-chart .ylabel {
+  font-size: 11px;
+  fill: #757575;
+  text-anchor: end;
+}
+
+.mat-chart .xlabel {
+  font-size: 10px;
+  fill: #757575;
+}
+
+.mat-chart .mbar {
+  fill: #bbdefb;
+}
+
+.mat-chart .mat-line {
+  fill: none;
+  stroke: #1976d2;
+  stroke-width: 2.5;
+}
+
+.mat-chart .mat-dot {
+  fill: #1976d2;
+}
