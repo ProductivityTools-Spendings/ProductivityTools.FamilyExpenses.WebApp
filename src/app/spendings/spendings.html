@@ -49,7 +49,6 @@
             <th>Godzina</th>
             <th>Typ</th>
             <th>Nazwa</th>
-            <th class="num">Kwota</th>
             <th class="num">Kwota PLN</th>
             <th>Konto źródłowe</th>
             <th>Konto docelowe</th>
@@ -69,13 +68,20 @@
               <td>{{ s.operationDate }}</td>
               <td>{{ s.operationTime }}</td>
               <td>{{ s.operationType }}@if (s.duplicateOf !== null) { <span class="dup-badge">dupl. #{{ s.duplicateOf }}</span> }</td>
-              <td class="name" [title]="s.details">{{ s.name }}</td>
-              <td class="num">{{ s.amount | currency: (s.currency || 'PLN') : 'symbol-narrow' : '1.2-2' : 'pl' }}</td>
-              <td class="num" [class.fx]="s.currency && s.currency !== 'PLN'" [title]="plnTitle(s)">
+              <td class="name" [title]="s.details">
+                {{ s.name }}
+                @if (isForeign(s)) {
+                  <span class="fx-note" [title]="plnTitle(s)">
+                    ({{ s.amount | currency: s.currency! : 'symbol-narrow' : '1.2-2' : 'pl' }}
+                    @if (s.fxRate !== null) { × {{ s.fxRate | number: '1.2-4' : 'pl' }} zł } @else { – brak kursu })
+                  </span>
+                }
+              </td>
+              <td class="num">
                 @if (s.amountPln !== null) {
                   {{ s.amountPln | currency: 'PLN' : 'symbol-narrow' : '1.2-2' : 'pl' }}
                 } @else {
-                  <span class="fx-missing">—</span>
+                  <span class="fx-missing" title="Brak kursu NBP – kliknij „Przelicz na PLN”">—</span>
                 }
               </td>
               <td class="mono">{{ s.srcAccount }}</td>

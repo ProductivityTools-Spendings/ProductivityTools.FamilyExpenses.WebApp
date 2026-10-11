@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
-import { CurrencyPipe } from '@angular/common';
+import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import { Observable } from 'rxjs';
 import { Spending } from '../models/spending';
 import { FillResult, SpendingService } from '../services/spending.service';
@@ -9,7 +9,7 @@ type Action = 'process' | 'fillAccounts' | 'fillCategories' | 'markDuplicates' |
 
 @Component({
   selector: 'app-spendings',
-  imports: [CurrencyPipe],
+  imports: [CurrencyPipe, DecimalPipe],
   templateUrl: './spendings.html',
   styleUrl: './spendings.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -99,11 +99,15 @@ export class Spendings implements OnInit {
     }));
   }
 
+  protected isForeign(s: Spending): boolean {
+    return !!s.currency && s.currency !== 'PLN';
+  }
+
   /** Tooltip explaining how the PLN amount was derived. */
   protected plnTitle(s: Spending): string {
-    if (s.currency === 'PLN' || !s.currency) return '';
+    if (!this.isForeign(s)) return '';
     if (s.amountPln === null) return 'Brak kursu NBP – kliknij „Przelicz na PLN”';
-    return `${s.amount} ${s.currency} × ${s.fxRate} (NBP ${s.fxRateDate})`;
+    return `Kurs średni NBP z ${s.fxRateDate} (ostatni dzień roboczy przed operacją)`;
   }
 
   /** Marks debits that mirror an outgoing transfer as duplicates. */
