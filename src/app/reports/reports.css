@@ -325,3 +325,8 @@ td.selected {
   color: #e65100;
   font-size: 0.78rem;
 }
+
+/* net inflow in a category (refund larger than spending) */
+.refund {
+  color: #2e7d32;
+}

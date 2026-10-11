@@ -126,7 +126,7 @@
             <tr>
               <td class="sticky">{{ r.category }}</td>
               @for (m of months(); track m) {
-                <td class="num heat clickable" [style.--heat]="(r.byMonth[m] ? (-r.byMonth[m] / pivotMax()) : 0)"
+                <td class="num heat clickable" [style.--heat]="(r.byMonth[m] && r.byMonth[m] < 0 ? (-r.byMonth[m] / pivotMax()) : 0)" [class.refund]="(r.byMonth[m] ?? 0) > 0"
                     [class.selected]="drill()?.category === r.category && drill()?.from === m && drill()?.to === m"
                     (click)="openDrill(r.category, m)" title="Pokaż transakcje">
                   @if (r.byMonth[m]) { {{ -r.byMonth[m] | number: '1.0-0' : 'pl' }} }
@@ -147,7 +147,7 @@
         </tfoot>
       </table>
     </div>
-    <p class="muted">Wartości w PLN (wydatki jako liczby dodatnie). Intensywność tła = wielkość wydatku. Kliknij komórkę, aby zobaczyć transakcje.</p>
+    <p class="muted">Saldo netto kategorii w PLN: wydatki pomniejszone o zwroty/wpływy zaksięgowane w tej samej kategorii (wydatek = liczba dodatnia, nadwyżka wpływów = ujemna, na zielono). Intensywność tła = wielkość wydatku. Kliknij komórkę, aby zobaczyć transakcje.</p>
 
     @if (drill(); as d) {
       <div class="drill">
@@ -182,7 +182,7 @@
                     <td>{{ x.account }}</td>
                     <td>{{ x.category }}</td>
                     <td class="ellipsis" [title]="x.note ?? ''">{{ x.note }}</td>
-                    <td class="num">{{ -x.amountPln | number: '1.2-2' : 'pl' }}</td>
+                    <td class="num" [class.refund]="x.amountPln > 0">{{ -x.amountPln | number: '1.2-2' : 'pl' }}</td>
                   </tr>
                 }
               </tbody>
