@@ -10,6 +10,10 @@ export interface Spending {
   dstAccount: string | null;
   amount: number;
   currency: string | null;
+  /** amount in PLN (NBP mid rate, D-1); equals amount for PLN rows; null until a rate is available */
+  amountPln: number | null;
+  fxRate: number | null;
+  fxRateDate: string | null;
   name: string | null;
   amountLeft: string | null;
   amountLeftCurrency: string | null;

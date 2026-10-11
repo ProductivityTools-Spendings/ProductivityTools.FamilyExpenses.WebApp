@@ -29,6 +29,11 @@ export class SpendingService {
     return this.http.post<FillResult>(`${this.baseUrl}/fill-categories`, null);
   }
 
+  /** Converts foreign-currency amounts to PLN (NBP mid rate). `remainingEmpty` = rows still without PLN amount. */
+  fillPln(): Observable<FillResult> {
+    return this.http.post<FillResult>(`${this.baseUrl}/fill-pln`, null);
+  }
+
   /** Marks debits mirroring outgoing transfers as duplicates. `remainingEmpty` carries the total marked count. */
   markDuplicates(): Observable<FillResult> {
     return this.http.post<FillResult>(`${this.baseUrl}/mark-duplicates`, null);

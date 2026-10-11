@@ -149,3 +149,13 @@ tr.primary td {
   cursor: pointer;
   font-size: inherit;
 }
+
+/* converted amounts: dotted underline hints at the tooltip with the rate */
+td.fx {
+  text-decoration: underline dotted #9e9e9e;
+  text-underline-offset: 3px;
+}
+
+.fx-missing {
+  color: #e65100;
+}

@@ -5,7 +5,7 @@ import { Spending } from '../models/spending';
 import { FillResult, SpendingService } from '../services/spending.service';
 import { EmailService, ProcessingResult } from '../services/email.service';
 
-type Action = 'process' | 'fillAccounts' | 'fillCategories' | 'markDuplicates';
+type Action = 'process' | 'fillAccounts' | 'fillCategories' | 'markDuplicates' | 'fillPln';
 
 @Component({
   selector: 'app-spendings',
@@ -88,6 +88,22 @@ export class Spendings implements OnInit {
       failed: false,
       reload: r.updated > 0,
     }));
+  }
+
+  /** Converts foreign-currency amounts to PLN using NBP rates. */
+  protected fillPln(): void {
+    this.run('fillPln', this.spendingService.fillPln(), (r) => ({
+      message: `Przeliczono na PLN: ${r.updated}. Nadal bez kwoty PLN: ${r.remainingEmpty}.`,
+      failed: false,
+      reload: r.updated > 0,
+    }));
+  }
+
+  /** Tooltip explaining how the PLN amount was derived. */
+  protected plnTitle(s: Spending): string {
+    if (s.currency === 'PLN' || !s.currency) return '';
+    if (s.amountPln === null) return 'Brak kursu NBP – kliknij „Przelicz na PLN”';
+    return `${s.amount} ${s.currency} × ${s.fxRate} (NBP ${s.fxRateDate})`;
   }
 
   /** Marks debits that mirror an outgoing transfer as duplicates. */

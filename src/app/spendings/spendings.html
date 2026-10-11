@@ -19,6 +19,9 @@
       <button type="button" class="secondary" (click)="fillCategories()" [disabled]="busy">
         {{ runningAction() === 'fillCategories' ? 'Uzupełnianie…' : 'Uzupełnij kategorie' }}
       </button>
+      <button type="button" class="secondary" (click)="fillPln()" [disabled]="busy">
+        {{ runningAction() === 'fillPln' ? 'Przeliczanie…' : 'Przelicz na PLN' }}
+      </button>
       <button type="button" class="secondary" (click)="markDuplicates()" [disabled]="busy">
         {{ runningAction() === 'markDuplicates' ? 'Oznaczanie…' : 'Oznacz duplikaty' }}
       </button>
@@ -47,6 +50,7 @@
             <th>Typ</th>
             <th>Nazwa</th>
             <th class="num">Kwota</th>
+            <th class="num">Kwota PLN</th>
             <th>Konto źródłowe</th>
             <th>Konto docelowe</th>
             <th>Konto</th>
@@ -67,6 +71,13 @@
               <td>{{ s.operationType }}@if (s.duplicateOf !== null) { <span class="dup-badge">dupl. #{{ s.duplicateOf }}</span> }</td>
               <td class="name" [title]="s.details">{{ s.name }}</td>
               <td class="num">{{ s.amount | currency: (s.currency || 'PLN') : 'symbol-narrow' : '1.2-2' : 'pl' }}</td>
+              <td class="num" [class.fx]="s.currency && s.currency !== 'PLN'" [title]="plnTitle(s)">
+                @if (s.amountPln !== null) {
+                  {{ s.amountPln | currency: 'PLN' : 'symbol-narrow' : '1.2-2' : 'pl' }}
+                } @else {
+                  <span class="fx-missing">—</span>
+                }
+              </td>
               <td class="mono">{{ s.srcAccount }}</td>
               <td class="mono">{{ s.dstAccount }}</td>
               <td>{{ s.account }}</td>
