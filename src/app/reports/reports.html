@@ -129,31 +129,31 @@
                 <td class="num heat clickable" [style.--heat]="(r.byMonth[m] && r.byMonth[m] < 0 ? (-r.byMonth[m] / pivotMax()) : 0)" [class.refund]="(r.byMonth[m] || 0) > 0"
                     [class.selected]="drill()?.category === r.category && drill()?.from === m && drill()?.to === m"
                     (click)="openDrill(r.category, m)" title="Pokaż transakcje">
-                  @if (r.byMonth[m]) { {{ -r.byMonth[m] | number: '1.0-0' : 'pl' }} }
+                  @if (r.byMonth[m]) { {{ r.byMonth[m] | number: '1.0-0' : 'pl' }} }
                 </td>
               }
-              <td class="num total clickable" (click)="openDrill(r.category, null)" title="Pokaż transakcje z całego zakresu">{{ -r.total | number: '1.0-0' : 'pl' }}</td>
-              <td class="num total">{{ -r.avg | number: '1.0-0' : 'pl' }}</td>
+              <td class="num total clickable" [class.refund]="r.total > 0" (click)="openDrill(r.category, null)" title="Pokaż transakcje z całego zakresu">{{ r.total | number: '1.0-0' : 'pl' }}</td>
+              <td class="num total" [class.refund]="r.avg > 0">{{ r.avg | number: '1.0-0' : 'pl' }}</td>
             </tr>
           }
         </tbody>
         <tfoot>
           <tr>
             <th class="sticky">Razem</th>
-            @for (m of months(); track m) { <th class="num clickable" (click)="openDrill(null, m)" title="Pokaż wszystkie transakcje z miesiąca">{{ -(pivotMonthTotals()[m] || 0) | number: '1.0-0' : 'pl' }}</th> }
-            <th class="num total clickable" (click)="openDrill(null, null)" title="Pokaż wszystkie transakcje z zakresu">{{ -pivotGrandTotal() | number: '1.0-0' : 'pl' }}</th>
-            <th class="num total">{{ months().length ? -pivotGrandTotal() / months().length : 0 | number: '1.0-0' : 'pl' }}</th>
+            @for (m of months(); track m) { <th class="num clickable" (click)="openDrill(null, m)" title="Pokaż wszystkie transakcje z miesiąca">{{ (pivotMonthTotals()[m] || 0) | number: '1.0-0' : 'pl' }}</th> }
+            <th class="num total clickable" (click)="openDrill(null, null)" title="Pokaż wszystkie transakcje z zakresu">{{ pivotGrandTotal() | number: '1.0-0' : 'pl' }}</th>
+            <th class="num total">{{ months().length ? pivotGrandTotal() / months().length : 0 | number: '1.0-0' : 'pl' }}</th>
           </tr>
         </tfoot>
       </table>
     </div>
-    <p class="muted">Saldo netto kategorii w PLN: wydatki pomniejszone o zwroty/wpływy zaksięgowane w tej samej kategorii (wydatek = liczba dodatnia, nadwyżka wpływów = ujemna, na zielono). Intensywność tła = wielkość wydatku. Kliknij komórkę, aby zobaczyć transakcje.</p>
+    <p class="muted">Saldo netto kategorii w PLN: wydatki ze znakiem minus, wpływy/zwroty z plusem (na zielono). Intensywność tła = wielkość wydatku. Kliknij komórkę, aby zobaczyć transakcje.</p>
 
     @if (drill(); as d) {
       <div class="drill">
         <div class="drill__head">
           <strong>{{ drillTitle() }}</strong>
-          <span class="muted">{{ drillRows().length }} transakcji · razem {{ -drillTotal() | currency: 'PLN' : 'symbol-narrow' : '1.2-2' : 'pl' }}</span>
+          <span class="muted">{{ drillRows().length }} transakcji · razem {{ drillTotal() | currency: 'PLN' : 'symbol-narrow' : '1.2-2' : 'pl' }}</span>
           <button type="button" class="link" (click)="closeDrill()">zamknij ✕</button>
         </div>
         @if (drillLoading()) {
@@ -182,7 +182,7 @@
                     <td>{{ x.account }}</td>
                     <td>{{ x.category }}</td>
                     <td class="ellipsis" [title]="x.note ?? ''">{{ x.note }}</td>
-                    <td class="num" [class.refund]="x.amountPln > 0">{{ -x.amountPln | number: '1.2-2' : 'pl' }}</td>
+                    <td class="num" [class.refund]="x.amountPln > 0">{{ x.amountPln | number: '1.2-2' : 'pl' }}</td>
                   </tr>
                 }
               </tbody>
