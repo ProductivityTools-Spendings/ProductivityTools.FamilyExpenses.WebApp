@@ -20,5 +20,7 @@ export interface Spending {
   category: string | null;
   note: string | null;
   allegroRawEmailId: number | null;
+  /** id of the canonical spending this row duplicates (debit mirroring a transfer); null = counts */
+  duplicateOf: number | null;
   detailsUpdatedAt: string | null;
 }

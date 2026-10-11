@@ -119,3 +119,28 @@ tr.negative .num {
 tr.positive .num {
   color: #2e7d32;
 }
+
+tr.duplicate {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+
+.dup-badge {
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: #eeeeee;
+  color: #616161;
+  font-size: 0.7rem;
+  text-decoration: none;
+}
+
+.spendings__actions button.link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: #1976d2;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: inherit;
+}

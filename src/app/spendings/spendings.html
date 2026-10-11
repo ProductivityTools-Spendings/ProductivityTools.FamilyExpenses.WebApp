@@ -2,7 +2,14 @@
   <header class="spendings__header">
     <h2>Transakcje</h2>
     <div class="spendings__actions">
-      <span class="spendings__count">{{ spendings().length }} pozycji</span>
+      <span class="spendings__count">
+        {{ visibleSpendings().length }} pozycji
+        @if (duplicateCount() > 0) {
+          · <button type="button" class="link" (click)="toggleDuplicates()">
+            {{ hideDuplicates() ? 'pokaż' : 'ukryj' }} {{ duplicateCount() }} dupl.
+          </button>
+        }
+      </span>
       <button type="button" class="secondary" (click)="processEmails()" [disabled]="busy">
         {{ runningAction() === 'process' ? 'Przetwarzanie…' : 'Przetwórz e-maile' }}
       </button>
@@ -11,6 +18,9 @@
       </button>
       <button type="button" class="secondary" (click)="fillCategories()" [disabled]="busy">
         {{ runningAction() === 'fillCategories' ? 'Uzupełnianie…' : 'Uzupełnij kategorie' }}
+      </button>
+      <button type="button" class="secondary" (click)="markDuplicates()" [disabled]="busy">
+        {{ runningAction() === 'markDuplicates' ? 'Oznaczanie…' : 'Oznacz duplikaty' }}
       </button>
       <button type="button" (click)="load()" [disabled]="busy">Odśwież</button>
     </div>
@@ -24,7 +34,7 @@
     <p class="spendings__info">Ładowanie…</p>
   } @else if (error()) {
     <p class="spendings__error">Błąd: {{ error() }}</p>
-  } @else if (spendings().length === 0) {
+  } @else if (visibleSpendings().length === 0) {
     <p class="spendings__info">Brak transakcji.</p>
   } @else {
     <div class="spendings__table-wrapper">
@@ -46,12 +56,13 @@
           </tr>
         </thead>
         <tbody>
-          @for (s of spendings(); track s.id) {
-            <tr [class.negative]="s.amount < 0" [class.positive]="s.amount > 0">
+          @for (s of visibleSpendings(); track s.id) {
+            <tr [class.negative]="s.amount < 0" [class.positive]="s.amount > 0" [class.duplicate]="s.duplicateOf !== null"
+                [title]="s.duplicateOf !== null ? 'Duplikat transakcji #' + s.duplicateOf : ''">
               <td>{{ s.id }}</td>
               <td>{{ s.operationDate }}</td>
               <td>{{ s.operationTime }}</td>
-              <td>{{ s.operationType }}</td>
+              <td>{{ s.operationType }}@if (s.duplicateOf !== null) { <span class="dup-badge">dupl. #{{ s.duplicateOf }}</span> }</td>
               <td class="name" [title]="s.details">{{ s.name }}</td>
               <td class="num">{{ s.amount | currency: (s.currency || 'PLN') : 'symbol-narrow' : '1.2-2' : 'pl' }}</td>
               <td class="mono">{{ s.srcAccount }}</td>

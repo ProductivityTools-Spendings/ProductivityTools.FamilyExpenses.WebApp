@@ -1,11 +1,11 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { Observable } from 'rxjs';
 import { Spending } from '../models/spending';
 import { FillResult, SpendingService } from '../services/spending.service';
 import { EmailService, ProcessingResult } from '../services/email.service';
 
-type Action = 'process' | 'fillAccounts' | 'fillCategories';
+type Action = 'process' | 'fillAccounts' | 'fillCategories' | 'markDuplicates';
 
 @Component({
   selector: 'app-spendings',
@@ -19,6 +19,11 @@ export class Spendings implements OnInit {
   private readonly emailService = inject(EmailService);
 
   protected readonly spendings = signal<Spending[]>([]);
+  protected readonly hideDuplicates = signal(true);
+  protected readonly visibleSpendings = computed(() =>
+    this.hideDuplicates() ? this.spendings().filter((s) => s.duplicateOf === null) : this.spendings(),
+  );
+  protected readonly duplicateCount = computed(() => this.spendings().filter((s) => s.duplicateOf !== null).length);
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
 
@@ -75,6 +80,19 @@ export class Spendings implements OnInit {
       failed: false,
       reload: r.updated > 0,
     }));
+  }
+
+  /** Marks debits that mirror an outgoing transfer as duplicates. */
+  protected markDuplicates(): void {
+    this.run('markDuplicates', this.spendingService.markDuplicates(), (r) => ({
+      message: `Oznaczono nowych duplikatów: ${r.updated}. Łącznie duplikatów: ${r.remainingEmpty}.`,
+      failed: false,
+      reload: r.updated > 0,
+    }));
+  }
+
+  protected toggleDuplicates(): void {
+    this.hideDuplicates.update((v) => !v);
   }
 
   private run<T>(

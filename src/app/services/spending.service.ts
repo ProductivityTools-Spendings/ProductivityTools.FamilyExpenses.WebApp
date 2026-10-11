@@ -28,4 +28,9 @@ export class SpendingService {
   fillCategories(): Observable<FillResult> {
     return this.http.post<FillResult>(`${this.baseUrl}/fill-categories`, null);
   }
+
+  /** Marks debits mirroring outgoing transfers as duplicates. `remainingEmpty` carries the total marked count. */
+  markDuplicates(): Observable<FillResult> {
+    return this.http.post<FillResult>(`${this.baseUrl}/mark-duplicates`, null);
+  }
 }
