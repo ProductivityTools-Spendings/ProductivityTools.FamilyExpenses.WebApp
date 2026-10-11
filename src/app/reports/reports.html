@@ -126,7 +126,7 @@
             <tr>
               <td class="sticky">{{ r.category }}</td>
               @for (m of months(); track m) {
-                <td class="num heat clickable" [style.--heat]="(r.byMonth[m] && r.byMonth[m] < 0 ? (-r.byMonth[m] / pivotMax()) : 0)" [class.refund]="(r.byMonth[m] ?? 0) > 0"
+                <td class="num heat clickable" [style.--heat]="(r.byMonth[m] && r.byMonth[m] < 0 ? (-r.byMonth[m] / pivotMax()) : 0)" [class.refund]="(r.byMonth[m] || 0) > 0"
                     [class.selected]="drill()?.category === r.category && drill()?.from === m && drill()?.to === m"
                     (click)="openDrill(r.category, m)" title="Pokaż transakcje">
                   @if (r.byMonth[m]) { {{ -r.byMonth[m] | number: '1.0-0' : 'pl' }} }
