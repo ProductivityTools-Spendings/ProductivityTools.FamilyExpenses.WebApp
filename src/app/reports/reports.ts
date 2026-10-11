@@ -13,18 +13,6 @@ interface PivotRow {
   avg: number;
 }
 
-/** Row of the period comparison (report 4). */
-interface CompareRow {
-  category: string;
-  current: number;
-  previous: number;
-  deltaPrev: number | null;
-  deltaPrevPct: number | null;
-  lastYear: number;
-  deltaYear: number | null;
-  deltaYearPct: number | null;
-}
-
 interface CashflowRow {
   month: string;
   income: number;
@@ -64,16 +52,12 @@ export class Reports implements OnInit {
   // --- filters -------------------------------------------------------------
   protected from = shiftMonth(ym(new Date()), -11);
   protected to = ym(new Date());
-  /** Month analysed in the comparison report; defaults to the last full month. */
-  protected compareMonth = shiftMonth(ym(new Date()), -1);
   protected cashflowAccount = signal<string>('*');
 
   // --- data ----------------------------------------------------------------
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly categoryData = signal<CategoryMonth[]>([]);
-  /** 13 months ending at compareMonth, loaded separately so the comparison is independent of the range filter. */
-  protected readonly compareData = signal<CategoryMonth[]>([]);
   protected readonly cashflowData = signal<CashflowMonth[]>([]);
   protected readonly recurring = signal<RecurringPayment[]>([]);
   protected readonly hygiene = signal<Hygiene | null>(null);
@@ -182,54 +166,6 @@ export class Reports implements OnInit {
     Math.max(1, ...this.cashflowRows().flatMap((r) => [r.income, Math.abs(r.expenses)])),
   );
 
-  // --- report 4: comparison -----------------------------------------------
-  protected readonly compareRows = computed<CompareRow[]>(() => {
-    const cur = this.compareMonth;
-    const prev = shiftMonth(cur, -1);
-    const year = shiftMonth(cur, -12);
-    const cats = new Map<string, CompareRow>();
-    const get = (c: string) => {
-      let r = cats.get(c);
-      if (!r) {
-        r = { category: c, current: 0, previous: 0, deltaPrev: null, deltaPrevPct: null, lastYear: 0, deltaYear: null, deltaYearPct: null };
-        cats.set(c, r);
-      }
-      return r;
-    };
-    for (const d of this.compareData()) {
-      if (d.month === cur) get(d.category).current += d.total;
-      else if (d.month === prev) get(d.category).previous += d.total;
-      else if (d.month === year) get(d.category).lastYear += d.total;
-    }
-    const pct = (a: number, b: number) => (b !== 0 ? ((a - b) / Math.abs(b)) * 100 : null);
-    return [...cats.values()]
-      .map((r) => ({
-        ...r,
-        deltaPrev: r.current - r.previous,
-        deltaPrevPct: pct(r.current, r.previous),
-        deltaYear: r.current - r.lastYear,
-        deltaYearPct: pct(r.current, r.lastYear),
-      }))
-      .sort((a, b) => a.current - b.current);
-  });
-
-  protected readonly compareTotals = computed<CompareRow>(() => {
-    const t = this.compareRows().reduce(
-      (acc, r) => ({ ...acc, current: acc.current + r.current, previous: acc.previous + r.previous, lastYear: acc.lastYear + r.lastYear }),
-      { category: 'Razem', current: 0, previous: 0, deltaPrev: null, deltaPrevPct: null, lastYear: 0, deltaYear: null, deltaYearPct: null } as CompareRow,
-    );
-    const pct = (a: number, b: number) => (b !== 0 ? ((a - b) / Math.abs(b)) * 100 : null);
-    return { ...t, deltaPrev: t.current - t.previous, deltaPrevPct: pct(t.current, t.previous), deltaYear: t.current - t.lastYear, deltaYearPct: pct(t.current, t.lastYear) };
-  });
-
-  protected get comparePrevMonth(): string {
-    return shiftMonth(this.compareMonth, -1);
-  }
-
-  protected get compareYearMonth(): string {
-    return shiftMonth(this.compareMonth, -12);
-  }
-
   // --- report 8: recurring ------------------------------------------------
   protected readonly showInactive = signal(false);
   protected readonly recurringRows = computed(() =>
@@ -253,14 +189,12 @@ export class Reports implements OnInit {
     this.error.set(null);
     forkJoin({
       categories: this.service.categoryMonthly(this.from, this.to),
-      compare: this.service.categoryMonthly(shiftMonth(this.compareMonth, -12), this.compareMonth),
       cashflow: this.service.cashflow(this.from, this.to),
       recurring: this.service.recurring(3),
       hygiene: this.service.hygiene(),
     }).subscribe({
-      next: ({ categories, compare, cashflow, recurring, hygiene }) => {
+      next: ({ categories, cashflow, recurring, hygiene }) => {
         this.categoryData.set(categories);
-        this.compareData.set(compare);
         this.cashflowData.set(cashflow);
         this.recurring.set(recurring);
         this.hygiene.set(hygiene);
@@ -271,19 +205,6 @@ export class Reports implements OnInit {
         this.loading.set(false);
       },
     });
-  }
-
-  protected reloadCompare(): void {
-    this.service.categoryMonthly(shiftMonth(this.compareMonth, -12), this.compareMonth).subscribe({
-      next: (d) => this.compareData.set(d),
-      error: (err) => this.error.set(err?.message ?? 'Nie udało się pobrać porównania.'),
-    });
-  }
-
-  /** Expenses are negative, so a negative delta means MORE was spent → shown as "+X%". */
-  protected pctLabel(p: number | null): string {
-    if (p === null) return '';
-    return (p < 0 ? '+' : '−') + Math.abs(p).toFixed(0) + '%';
   }
 
   protected barWidth(value: number, max: number): string {

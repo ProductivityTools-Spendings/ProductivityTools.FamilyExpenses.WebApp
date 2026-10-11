@@ -193,55 +193,6 @@
     }
   </section>
 
-  <!-- ============ 4. Porównanie okresów ============ -->
-  <section class="card">
-    <div class="card__head">
-      <h3>Porównanie okresów</h3>
-      <label class="inline">Miesiąc <input type="month" name="compareMonth" [(ngModel)]="compareMonth" (change)="reloadCompare()" /></label>
-    </div>
-    <table class="tbl">
-      <thead>
-        <tr>
-          <th>Kategoria</th>
-          <th class="num">{{ compareMonth }}</th>
-          <th class="num">{{ comparePrevMonth }}</th>
-          <th class="num">Δ m/m</th>
-          <th class="num">{{ compareYearMonth }}</th>
-          <th class="num">Δ r/r</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (r of compareRows(); track r.category) {
-          <tr>
-            <td>{{ r.category }}</td>
-            <td class="num">{{ -r.current | number: '1.0-0' : 'pl' }}</td>
-            <td class="num muted">{{ -r.previous | number: '1.0-0' : 'pl' }}</td>
-            <td class="num" [class.worse]="(r.deltaPrev ?? 0) < -1" [class.better]="(r.deltaPrev ?? 0) > 1">
-              {{ -(r.deltaPrev ?? 0) | number: '1.0-0' : 'pl' }}
-              @if (r.deltaPrevPct !== null) { <small>({{ pctLabel(r.deltaPrevPct) }})</small> }
-            </td>
-            <td class="num muted">{{ -r.lastYear | number: '1.0-0' : 'pl' }}</td>
-            <td class="num" [class.worse]="(r.deltaYear ?? 0) < -1" [class.better]="(r.deltaYear ?? 0) > 1">
-              {{ -(r.deltaYear ?? 0) | number: '1.0-0' : 'pl' }}
-              @if (r.deltaYearPct !== null) { <small>({{ pctLabel(r.deltaYearPct) }})</small> }
-            </td>
-          </tr>
-        }
-      </tbody>
-      <tfoot>
-        <tr>
-          <th>Razem</th>
-          <th class="num">{{ -compareTotals().current | number: '1.0-0' : 'pl' }}</th>
-          <th class="num">{{ -compareTotals().previous | number: '1.0-0' : 'pl' }}</th>
-          <th class="num" [class.worse]="(compareTotals().deltaPrev ?? 0) < -1" [class.better]="(compareTotals().deltaPrev ?? 0) > 1">{{ -(compareTotals().deltaPrev ?? 0) | number: '1.0-0' : 'pl' }}</th>
-          <th class="num">{{ -compareTotals().lastYear | number: '1.0-0' : 'pl' }}</th>
-          <th class="num" [class.worse]="(compareTotals().deltaYear ?? 0) < -1" [class.better]="(compareTotals().deltaYear ?? 0) > 1">{{ -(compareTotals().deltaYear ?? 0) | number: '1.0-0' : 'pl' }}</th>
-        </tr>
-      </tfoot>
-    </table>
-    <p class="muted">Wydatki jako liczby dodatnie; Δ = ile więcej (czerwone) / mniej (zielone) niż w okresie odniesienia.</p>
-  </section>
-
   <!-- ============ 8. Cykliczne zobowiązania ============ -->
   <section class="card">
     <div class="card__head">
