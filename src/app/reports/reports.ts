@@ -3,7 +3,7 @@ import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
-import { CashflowMonth, CategoryDetail, CategoryMonth, Hygiene, RecurringPayment, ReportService } from '../services/report.service';
+import { CategoryDetail, CategoryMonth, Hygiene, RecurringPayment, ReportService } from '../services/report.service';
 
 /** Row of the category × month pivot (report 1). */
 interface PivotRow {
@@ -11,13 +11,6 @@ interface PivotRow {
   byMonth: Record<string, number>;
   total: number;
   avg: number;
-}
-
-interface CashflowRow {
-  month: string;
-  income: number;
-  expenses: number;
-  net: number;
 }
 
 function ym(d: Date): string {
@@ -52,13 +45,11 @@ export class Reports implements OnInit {
   // --- filters -------------------------------------------------------------
   protected from = shiftMonth(ym(new Date()), -11);
   protected to = ym(new Date());
-  protected cashflowAccount = signal<string>('*');
 
   // --- data ----------------------------------------------------------------
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly categoryData = signal<CategoryMonth[]>([]);
-  protected readonly cashflowData = signal<CashflowMonth[]>([]);
   protected readonly recurring = signal<RecurringPayment[]>([]);
   protected readonly hygiene = signal<Hygiene | null>(null);
 
@@ -167,37 +158,6 @@ export class Reports implements OnInit {
     return `${d.category ?? 'Wszystkie kategorie'} · ${period}`;
   }
 
-  // --- report 2: cashflow --------------------------------------------------
-  protected readonly cashflowAccounts = computed(() => [...new Set(this.cashflowData().map((c) => c.account))].sort());
-
-  protected readonly cashflowRows = computed<CashflowRow[]>(() => {
-    const acc = this.cashflowAccount();
-    const map = new Map<string, CashflowRow>();
-    for (const m of this.months()) {
-      map.set(m, { month: m, income: 0, expenses: 0, net: 0 });
-    }
-    for (const c of this.cashflowData()) {
-      if (acc !== '*' && c.account !== acc) continue;
-      const row = map.get(c.month);
-      if (!row) continue;
-      row.income += c.income;
-      row.expenses += c.expenses;
-      row.net += c.net;
-    }
-    return [...map.values()];
-  });
-
-  protected readonly cashflowTotals = computed<CashflowRow>(() =>
-    this.cashflowRows().reduce(
-      (t, r) => ({ month: 'Σ', income: t.income + r.income, expenses: t.expenses + r.expenses, net: t.net + r.net }),
-      { month: 'Σ', income: 0, expenses: 0, net: 0 },
-    ),
-  );
-
-  protected readonly cashflowMax = computed(() =>
-    Math.max(1, ...this.cashflowRows().flatMap((r) => [r.income, Math.abs(r.expenses)])),
-  );
-
   // --- report 8: recurring ------------------------------------------------
   protected readonly showInactive = signal(false);
   protected readonly recurringRows = computed(() =>
@@ -221,13 +181,11 @@ export class Reports implements OnInit {
     this.error.set(null);
     forkJoin({
       categories: this.service.categoryMonthly(this.from, this.to),
-      cashflow: this.service.cashflow(this.from, this.to),
       recurring: this.service.recurring(3),
       hygiene: this.service.hygiene(),
     }).subscribe({
-      next: ({ categories, cashflow, recurring, hygiene }) => {
+      next: ({ categories, recurring, hygiene }) => {
         this.categoryData.set(categories);
-        this.cashflowData.set(cashflow);
         this.recurring.set(recurring);
         this.hygiene.set(hygiene);
         this.loading.set(false);
@@ -247,7 +205,4 @@ export class Reports implements OnInit {
     this.showInactive.update((v) => !v);
   }
 
-  protected setCashflowAccount(value: string): void {
-    this.cashflowAccount.set(value);
-  }
 }

@@ -69,45 +69,6 @@
     </section>
   }
 
-  <!-- ============ 2. Cash flow ============ -->
-  <section class="card">
-    <div class="card__head">
-      <h3>Przepływ miesięczny</h3>
-      <label class="inline">Konto
-        <select [ngModel]="cashflowAccount()" (ngModelChange)="setCashflowAccount($event)" name="cashflowAccount">
-          <option value="*">wszystkie</option>
-          @for (a of cashflowAccounts(); track a) { <option [value]="a">{{ a }}</option> }
-        </select>
-      </label>
-    </div>
-    <table class="tbl">
-      <thead><tr><th>Miesiąc</th><th class="num">Przychody</th><th class="num">Wydatki</th><th class="num">Netto</th><th class="bars"></th></tr></thead>
-      <tbody>
-        @for (r of cashflowRows(); track r.month) {
-          <tr>
-            <td>{{ r.month }}</td>
-            <td class="num pos">{{ r.income | currency: 'PLN' : 'symbol-narrow' : '1.0-0' : 'pl' }}</td>
-            <td class="num neg">{{ r.expenses | currency: 'PLN' : 'symbol-narrow' : '1.0-0' : 'pl' }}</td>
-            <td class="num" [class.pos]="r.net >= 0" [class.neg]="r.net < 0"><strong>{{ r.net | currency: 'PLN' : 'symbol-narrow' : '1.0-0' : 'pl' }}</strong></td>
-            <td class="bars">
-              <div class="bar bar--in" [style.width]="barWidth(r.income, cashflowMax())"></div>
-              <div class="bar bar--out" [style.width]="barWidth(r.expenses, cashflowMax())"></div>
-            </td>
-          </tr>
-        }
-      </tbody>
-      <tfoot>
-        <tr>
-          <th>Razem</th>
-          <th class="num pos">{{ cashflowTotals().income | currency: 'PLN' : 'symbol-narrow' : '1.0-0' : 'pl' }}</th>
-          <th class="num neg">{{ cashflowTotals().expenses | currency: 'PLN' : 'symbol-narrow' : '1.0-0' : 'pl' }}</th>
-          <th class="num" [class.pos]="cashflowTotals().net >= 0" [class.neg]="cashflowTotals().net < 0">{{ cashflowTotals().net | currency: 'PLN' : 'symbol-narrow' : '1.0-0' : 'pl' }}</th>
-          <th></th>
-        </tr>
-      </tfoot>
-    </table>
-  </section>
-
   <!-- ============ 1. Kategorie × miesiące ============ -->
   <section class="card">
     <h3>Wydatki wg kategorii</h3>
