@@ -1,0 +1,80 @@
+<section class="dict">
+  <header class="dict__header">
+    <h2>Słownik rachunków</h2>
+    <div class="dict__actions">
+      <span class="dict__count">{{ rows().length }} wpisów</span>
+      <button type="button" (click)="load()" [disabled]="loading()">Odśwież</button>
+    </div>
+  </header>
+
+  @if (status(); as msg) {
+    <p class="dict__status">{{ msg }}</p>
+  }
+  @if (error(); as msg) {
+    <p class="dict__error">{{ msg }}</p>
+  }
+
+  <form class="dict__form" (ngSubmit)="create()">
+    <input id="new-key" name="key" [(ngModel)]="newKey" placeholder="Numer rachunku / karty (klucz)" autocomplete="off" />
+    <input id="new-name" name="name" [(ngModel)]="newName" placeholder="Nazwa (np. Konto główne)" autocomplete="off" />
+    <button type="submit" [disabled]="creating()">{{ creating() ? 'Dodawanie…' : 'Dodaj' }}</button>
+  </form>
+
+  <div class="dict__layout">
+    <div class="dict__table-wrapper">
+      @if (loading()) {
+        <p class="dict__info">Ładowanie…</p>
+      } @else if (rows().length === 0) {
+        <p class="dict__info">Słownik jest pusty.</p>
+      } @else {
+        <table class="dict__table">
+          <thead>
+            <tr>
+              <th>Klucz (rachunek)</th>
+              <th>Nazwa</th>
+              <th class="actions"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of rows(); track r.id) {
+              <tr [class.editing]="r.editing">
+                @if (r.editing) {
+                  <td><input [(ngModel)]="r.draftKey" [name]="'key-' + r.id" class="mono" /></td>
+                  <td><input [(ngModel)]="r.draftName" [name]="'name-' + r.id" (keyup.enter)="save(r)" (keyup.escape)="cancelEdit(r)" /></td>
+                  <td class="actions">
+                    <button type="button" (click)="save(r)" [disabled]="r.saving">{{ r.saving ? '…' : 'Zapisz' }}</button>
+                    <button type="button" class="secondary" (click)="cancelEdit(r)" [disabled]="r.saving">Anuluj</button>
+                  </td>
+                } @else {
+                  <td class="mono">{{ r.key }}</td>
+                  <td>{{ r.name }}</td>
+                  <td class="actions">
+                    <button type="button" class="secondary" (click)="startEdit(r)" [disabled]="r.saving">Edytuj</button>
+                    <button type="button" class="danger" (click)="remove(r)" [disabled]="r.saving">Usuń</button>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+
+    <aside class="dict__unmapped">
+      <h3>Rachunki bez nazwy <span class="dict__count">({{ unmapped().length }})</span></h3>
+      <p class="dict__hint">Numery występujące w transakcjach, których nie ma w słowniku. Kliknij, aby wypełnić formularz.</p>
+      @if (unmapped().length === 0 && !loading()) {
+        <p class="dict__info">Wszystkie rachunki mają nazwę.</p>
+      } @else {
+        <ul>
+          @for (u of unmapped(); track u.account) {
+            <li>
+              <button type="button" class="link mono" (click)="prefill(u)">{{ u.account }}</button>
+              <span class="dict__meta">{{ u.spendingsCount }} op. · ost. {{ u.lastOperationDate }}</span>
+            </li>
+          }
+        </ul>
+      }
+    </aside>
+  </div>
+</section>
