@@ -218,22 +218,6 @@ summary {
   font-variant-numeric: tabular-nums;
 }
 
-.pos {
-  color: #2e7d32;
-}
-
-.neg {
-  color: #c62828;
-}
-
-.worse {
-  color: #c62828;
-}
-
-.better {
-  color: #2e7d32;
-}
-
 .ellipsis {
   max-width: 22rem;
   overflow: hidden;
@@ -266,24 +250,63 @@ tr.inactive {
   background: rgba(25, 118, 210, calc(var(--heat, 0) * 0.55));
 }
 
-/* cashflow bars */
-.bars {
-  width: 30%;
-  min-width: 10rem;
+/* pie: category share */
+.pie {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+  flex-wrap: wrap;
 }
 
-.bar {
-  height: 6px;
-  border-radius: 3px;
-  margin: 2px 0;
+.pie__chart {
+  width: 320px;
+  max-width: 100%;
+  flex: 0 0 auto;
 }
 
-.bar--in {
-  background: #66bb6a;
+.pie__slice {
+  stroke: #fff;
+  stroke-width: 1.5;
 }
 
-.bar--out {
-  background: #ef5350;
+.pie__slice:hover {
+  opacity: 0.8;
+  outline: none;
+}
+
+.pie__label {
+  font-size: 10px;
+  font-weight: 600;
+  fill: #fff;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  pointer-events: none;
+}
+
+.pie__center {
+  font-size: 18px;
+  font-weight: 600;
+  fill: #333;
+  text-anchor: middle;
+}
+
+.pie__center--sub {
+  font-size: 11px;
+  font-weight: 400;
+  fill: #777;
+}
+
+.pie__legend {
+  width: auto;
+  flex: 1 1 18rem;
+}
+
+.swatch {
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 2px;
+  vertical-align: middle;
 }
 
 /* pivot drill-down */

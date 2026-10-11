@@ -157,6 +157,46 @@
     }
   </section>
 
+  <!-- ============ Udział kategorii (pie) ============ -->
+  <section class="card">
+    <div class="card__head">
+      <h3>Udział kategorii w wydatkach</h3>
+      <span class="muted">{{ fromApplied() }} – {{ toApplied() }} · razem <strong>{{ -pieTotal() | currency: 'PLN' : 'symbol-narrow' : '1.0-0' : 'pl' }}</strong></span>
+    </div>
+    @if (pieSlices().length === 0) {
+      <p class="muted">Brak wydatków w wybranym zakresie.</p>
+    } @else {
+      <div class="pie">
+        <svg class="pie__chart" [attr.viewBox]="'0 0 ' + pieC * 2 + ' ' + pieC * 2" role="img" aria-label="Udział kategorii">
+          @for (s of pieSlices(); track s.category) {
+            <path [attr.d]="s.path" [attr.fill]="s.color" class="pie__slice clickable" (click)="openDrill(s.category, null)">
+              <title>{{ s.category }}: {{ s.pct | number: '1.1-1' : 'pl' }} % · {{ s.value | number: '1.0-0' : 'pl' }} zł</title>
+            </path>
+            @if (s.pct >= 4) {
+              <text class="pie__label" [attr.x]="s.labelX" [attr.y]="s.labelY">{{ s.pct | number: '1.0-0' : 'pl' }}%</text>
+            }
+          }
+          <text class="pie__center" [attr.x]="pieC" [attr.y]="pieC - 4">{{ pieTotal() | number: '1.0-0' : 'pl' }}</text>
+          <text class="pie__center pie__center--sub" [attr.x]="pieC" [attr.y]="pieC + 14">zł</text>
+        </svg>
+        <table class="tbl tbl--compact pie__legend">
+          <thead><tr><th></th><th>Kategoria</th><th class="num">Udział</th><th class="num">Kwota</th></tr></thead>
+          <tbody>
+            @for (s of pieSlices(); track s.category) {
+              <tr class="clickable" (click)="openDrill(s.category, null)" title="Pokaż transakcje">
+                <td><span class="swatch" [style.background]="s.color"></span></td>
+                <td>{{ s.category }}</td>
+                <td class="num">{{ s.pct | number: '1.1-1' : 'pl' }} %</td>
+                <td class="num">{{ -s.value | number: '1.0-0' : 'pl' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <p class="muted">Tylko kategorie z ujemnym saldem (wydatki) zaznaczone w tabeli „Wydatki wg kategorii”; udział liczony od sumy tych kategorii w wybranym zakresie. Kliknięcie wycinka lub wiersza otwiera transakcje w tabeli powyżej.</p>
+    }
+  </section>
+
   <!-- ============ MAT 12 miesięcy ============ -->
   <section class="card">
     <div class="card__head">

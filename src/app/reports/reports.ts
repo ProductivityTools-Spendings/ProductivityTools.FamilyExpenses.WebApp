@@ -13,6 +13,23 @@ interface PivotRow {
   avg: number;
 }
 
+/** One slice of the category-share donut. */
+interface PieSlice {
+  category: string;
+  value: number;
+  pct: number;
+  color: string;
+  path: string;
+  labelX: number;
+  labelY: number;
+}
+
+const PIE_COLORS = [
+  '#1976d2', '#e53935', '#43a047', '#fb8c00', '#8e24aa', '#00acc1', '#fdd835', '#6d4c41',
+  '#3949ab', '#d81b60', '#7cb342', '#f4511e', '#5e35b1', '#00897b', '#c0ca33', '#757575',
+  '#039be5', '#ad1457', '#2e7d32', '#ef6c00', '#4527a0', '#00695c', '#9e9d24', '#546e7a',
+];
+
 function ym(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
@@ -57,8 +74,8 @@ export class Reports implements OnInit {
 
   // --- report 1: pivot -----------------------------------------------------
   protected readonly months = computed(() => monthsBetween(this.fromApplied(), this.toApplied()));
-  private readonly fromApplied = signal(this.from);
-  private readonly toApplied = signal(this.to);
+  protected readonly fromApplied = signal(this.from);
+  protected readonly toApplied = signal(this.to);
 
   protected readonly pivot = computed<PivotRow[]>(() => {
     const months = this.months();
@@ -158,6 +175,46 @@ export class Reports implements OnInit {
     if (!d) return '';
     const period = d.from === d.to ? d.from : `${d.from} – ${d.to}`;
     return `${d.category ?? 'Wszystkie kategorie'} · ${period}`;
+  }
+
+  // --- pie: category share -------------------------------------------------
+  protected readonly pieR = 100;
+  protected readonly pieInner = 58;
+  protected readonly pieC = 110;
+
+  /** Expense categories (net < 0) included in the pivot, as donut slices with share of the total. */
+  protected readonly pieSlices = computed<PieSlice[]>(() => {
+    const excluded = this.excluded();
+    const rows = this.pivot().filter((r) => !excluded.has(r.category) && r.total < 0);
+    const sum = rows.reduce((s, r) => s - r.total, 0);
+    let angle = -Math.PI / 2;
+    return rows.map((r, i) => {
+      const value = -r.total;
+      const frac = sum ? value / sum : 0;
+      const start = angle;
+      const end = angle + Math.min(frac, 0.99999) * 2 * Math.PI;
+      angle = start + frac * 2 * Math.PI;
+      const mid = (start + end) / 2;
+      const lr = (this.pieR + this.pieInner) / 2;
+      return {
+        category: r.category,
+        value,
+        pct: frac * 100,
+        color: PIE_COLORS[i % PIE_COLORS.length],
+        path: this.arcPath(start, end),
+        labelX: this.pieC + lr * Math.cos(mid),
+        labelY: this.pieC + lr * Math.sin(mid),
+      };
+    });
+  });
+
+  protected readonly pieTotal = computed(() => this.pieSlices().reduce((s, x) => s + x.value, 0));
+
+  private arcPath(start: number, end: number): string {
+    const R = this.pieR, r = this.pieInner, c = this.pieC;
+    const large = end - start > Math.PI ? 1 : 0;
+    const p = (rad: number, a: number) => `${(c + rad * Math.cos(a)).toFixed(2)},${(c + rad * Math.sin(a)).toFixed(2)}`;
+    return `M${p(R, start)} A${R},${R} 0 ${large} 1 ${p(R, end)} L${p(r, end)} A${r},${r} 0 ${large} 0 ${p(r, start)} Z`;
   }
 
   // --- MAT: moving annual total --------------------------------------------
@@ -275,10 +332,6 @@ export class Reports implements OnInit {
         this.loading.set(false);
       },
     });
-  }
-
-  protected barWidth(value: number, max: number): string {
-    return `${Math.min(100, (Math.abs(value) / max) * 100).toFixed(1)}%`;
   }
 
   protected toggleInactive(): void {
