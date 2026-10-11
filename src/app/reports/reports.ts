@@ -83,9 +83,41 @@ export class Reports implements OnInit {
     return rows.sort((a, b) => a.total - b.total); // most negative (largest expense) first
   });
 
+  /** Categories unticked in the pivot – greyed out and left out of the totals. Persisted in localStorage. */
+  private static readonly EXCLUDED_KEY = 'reports.pivot.excludedCategories';
+  protected readonly excluded = signal<Set<string>>(new Set(JSON.parse(localStorage.getItem(Reports.EXCLUDED_KEY) ?? '[]')));
+
+  protected isIncluded(category: string): boolean {
+    return !this.excluded().has(category);
+  }
+
+  protected toggleCategory(category: string): void {
+    this.excluded.update((set) => {
+      const next = new Set(set);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      localStorage.setItem(Reports.EXCLUDED_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }
+
+  protected readonly allIncluded = computed(() => this.pivot().every((r) => this.isIncluded(r.category)));
+
+  protected toggleAll(): void {
+    const include = !this.allIncluded();
+    this.excluded.update(() => {
+      const next = include ? new Set<string>() : new Set(this.pivot().map((r) => r.category));
+      localStorage.setItem(Reports.EXCLUDED_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }
+
+  /** Month totals over included categories only. */
   protected readonly pivotMonthTotals = computed<Record<string, number>>(() => {
+    const excluded = this.excluded();
     const totals: Record<string, number> = {};
     for (const r of this.categoryData()) {
+      if (excluded.has(r.category)) continue;
       totals[r.month] = (totals[r.month] ?? 0) + r.total;
     }
     return totals;

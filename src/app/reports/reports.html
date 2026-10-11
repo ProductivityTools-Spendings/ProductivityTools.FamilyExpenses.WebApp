@@ -115,6 +115,7 @@
       <table class="tbl tbl--pivot">
         <thead>
           <tr>
+            <th class="check"><input type="checkbox" [checked]="allIncluded()" (change)="toggleAll()" title="Zaznacz/odznacz wszystkie" /></th>
             <th class="sticky">Kategoria</th>
             @for (m of months(); track m) { <th class="num">{{ m }}</th> }
             <th class="num total">Razem</th>
@@ -123,7 +124,8 @@
         </thead>
         <tbody>
           @for (r of pivot(); track r.category) {
-            <tr>
+            <tr [class.excluded]="!isIncluded(r.category)">
+              <td class="check"><input type="checkbox" [checked]="isIncluded(r.category)" (change)="toggleCategory(r.category)" [title]="isIncluded(r.category) ? 'Wyłącz z sumy' : 'Włącz do sumy'" /></td>
               <td class="sticky">{{ r.category }}</td>
               @for (m of months(); track m) {
                 <td class="num heat clickable" [style.--heat]="(r.byMonth[m] && r.byMonth[m] < 0 ? (-r.byMonth[m] / pivotMax()) : 0)" [class.refund]="(r.byMonth[m] || 0) > 0"
@@ -139,6 +141,7 @@
         </tbody>
         <tfoot>
           <tr>
+            <th class="check"></th>
             <th class="sticky">Razem</th>
             @for (m of months(); track m) { <th class="num clickable" (click)="openDrill(null, m)" title="Pokaż wszystkie transakcje z miesiąca">{{ (pivotMonthTotals()[m] || 0) | number: '1.0-0' : 'pl' }}</th> }
             <th class="num total clickable" (click)="openDrill(null, null)" title="Pokaż wszystkie transakcje z zakresu">{{ pivotGrandTotal() | number: '1.0-0' : 'pl' }}</th>
@@ -147,7 +150,7 @@
         </tfoot>
       </table>
     </div>
-    <p class="muted">Saldo netto kategorii w PLN: wydatki ze znakiem minus, wpływy/zwroty z plusem (na zielono). Intensywność tła = wielkość wydatku. Kliknij komórkę, aby zobaczyć transakcje.</p>
+    <p class="muted">Saldo netto kategorii w PLN: wydatki ze znakiem minus, wpływy/zwroty z plusem (na zielono). Intensywność tła = wielkość wydatku. Odznaczone kategorie (szare) nie wchodzą do wiersza „Razem”; wybór jest zapamiętywany. Kliknij komórkę, aby zobaczyć transakcje.</p>
 
     @if (drill(); as d) {
       <div class="drill">
