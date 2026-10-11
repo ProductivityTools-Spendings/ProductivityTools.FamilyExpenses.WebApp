@@ -285,3 +285,43 @@ tr.inactive {
 .bar--out {
   background: #ef5350;
 }
+
+/* pivot drill-down */
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover {
+  outline: 2px solid #1976d2;
+  outline-offset: -2px;
+}
+
+td.selected {
+  outline: 2px solid #e65100;
+  outline-offset: -2px;
+}
+
+.drill {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #90caf9;
+  border-radius: 6px;
+  background: #f5faff;
+}
+
+.drill__head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.drill__head button {
+  margin-left: auto;
+}
+
+.fx-note {
+  margin-left: 0.3rem;
+  color: #e65100;
+  font-size: 0.78rem;
+}

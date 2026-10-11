@@ -126,11 +126,13 @@
             <tr>
               <td class="sticky">{{ r.category }}</td>
               @for (m of months(); track m) {
-                <td class="num heat" [style.--heat]="(r.byMonth[m] ? (-r.byMonth[m] / pivotMax()) : 0)">
+                <td class="num heat clickable" [style.--heat]="(r.byMonth[m] ? (-r.byMonth[m] / pivotMax()) : 0)"
+                    [class.selected]="drill()?.category === r.category && drill()?.from === m && drill()?.to === m"
+                    (click)="openDrill(r.category, m)" title="Pokaż transakcje">
                   @if (r.byMonth[m]) { {{ -r.byMonth[m] | number: '1.0-0' : 'pl' }} }
                 </td>
               }
-              <td class="num total">{{ -r.total | number: '1.0-0' : 'pl' }}</td>
+              <td class="num total clickable" (click)="openDrill(r.category, null)" title="Pokaż transakcje z całego zakresu">{{ -r.total | number: '1.0-0' : 'pl' }}</td>
               <td class="num total">{{ -r.avg | number: '1.0-0' : 'pl' }}</td>
             </tr>
           }
@@ -138,14 +140,57 @@
         <tfoot>
           <tr>
             <th class="sticky">Razem</th>
-            @for (m of months(); track m) { <th class="num">{{ -(pivotMonthTotals()[m] || 0) | number: '1.0-0' : 'pl' }}</th> }
-            <th class="num total">{{ -pivotGrandTotal() | number: '1.0-0' : 'pl' }}</th>
+            @for (m of months(); track m) { <th class="num clickable" (click)="openDrill(null, m)" title="Pokaż wszystkie transakcje z miesiąca">{{ -(pivotMonthTotals()[m] || 0) | number: '1.0-0' : 'pl' }}</th> }
+            <th class="num total clickable" (click)="openDrill(null, null)" title="Pokaż wszystkie transakcje z zakresu">{{ -pivotGrandTotal() | number: '1.0-0' : 'pl' }}</th>
             <th class="num total">{{ months().length ? -pivotGrandTotal() / months().length : 0 | number: '1.0-0' : 'pl' }}</th>
           </tr>
         </tfoot>
       </table>
     </div>
-    <p class="muted">Wartości w PLN (wydatki jako liczby dodatnie). Intensywność tła = wielkość wydatku.</p>
+    <p class="muted">Wartości w PLN (wydatki jako liczby dodatnie). Intensywność tła = wielkość wydatku. Kliknij komórkę, aby zobaczyć transakcje.</p>
+
+    @if (drill(); as d) {
+      <div class="drill">
+        <div class="drill__head">
+          <strong>{{ drillTitle() }}</strong>
+          <span class="muted">{{ drillRows().length }} transakcji · razem {{ -drillTotal() | currency: 'PLN' : 'symbol-narrow' : '1.2-2' : 'pl' }}</span>
+          <button type="button" class="link" (click)="closeDrill()">zamknij ✕</button>
+        </div>
+        @if (drillLoading()) {
+          <p class="muted">Ładowanie…</p>
+        } @else if (drillRows().length === 0) {
+          <p class="muted">Brak transakcji.</p>
+        } @else {
+          <div class="scroll">
+            <table class="tbl tbl--compact">
+              <thead>
+                <tr><th>Id</th><th>Data</th><th>Godz.</th><th>Typ</th><th>Nazwa</th><th>Konto</th><th>Kategoria</th><th>Notatka</th><th class="num">Kwota PLN</th></tr>
+              </thead>
+              <tbody>
+                @for (x of drillRows(); track x.id) {
+                  <tr>
+                    <td>#{{ x.id }}</td>
+                    <td>{{ x.operationDate }}</td>
+                    <td>{{ x.operationTime }}</td>
+                    <td>{{ x.operationType }}</td>
+                    <td class="ellipsis" [title]="x.name ?? ''">
+                      {{ x.name }}
+                      @if (x.currency && x.currency !== 'PLN') {
+                        <span class="fx-note">({{ x.amount | currency: x.currency : 'symbol-narrow' : '1.2-2' : 'pl' }})</span>
+                      }
+                    </td>
+                    <td>{{ x.account }}</td>
+                    <td>{{ x.category }}</td>
+                    <td class="ellipsis" [title]="x.note ?? ''">{{ x.note }}</td>
+                    <td class="num">{{ -x.amountPln | number: '1.2-2' : 'pl' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </div>
+    }
   </section>
 
   <!-- ============ 4. Porównanie okresów ============ -->

@@ -10,6 +10,20 @@ export interface CategoryMonth {
   count: number;
 }
 
+export interface CategoryDetail {
+  id: number;
+  operationDate: string;
+  operationTime: string | null;
+  operationType: string;
+  name: string | null;
+  amount: number;
+  currency: string | null;
+  amountPln: number;
+  account: string | null;
+  category: string | null;
+  note: string | null;
+}
+
 export interface CashflowMonth {
   month: string;
   account: string;
@@ -61,6 +75,13 @@ export class ReportService {
 
   categoryMonthly(from: string, to: string): Observable<CategoryMonth[]> {
     return this.http.get<CategoryMonth[]>(`${this.baseUrl}/category-monthly`, { params: new HttpParams({ fromObject: { from, to } }) });
+  }
+
+  /** Spendings behind a pivot cell; omit category for a whole month, pass '(bez kategorii)' for uncategorised. */
+  categoryMonthlyDetails(from: string, to: string, category?: string): Observable<CategoryDetail[]> {
+    const params: Record<string, string> = { from, to };
+    if (category) params['category'] = category;
+    return this.http.get<CategoryDetail[]>(`${this.baseUrl}/category-monthly/details`, { params: new HttpParams({ fromObject: params }) });
   }
 
   cashflow(from: string, to: string): Observable<CashflowMonth[]> {

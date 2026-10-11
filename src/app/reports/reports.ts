@@ -3,7 +3,7 @@ import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
-import { CashflowMonth, CategoryMonth, Hygiene, RecurringPayment, ReportService } from '../services/report.service';
+import { CashflowMonth, CategoryDetail, CategoryMonth, Hygiene, RecurringPayment, ReportService } from '../services/report.service';
 
 /** Row of the category × month pivot (report 1). */
 interface PivotRow {
@@ -113,6 +113,43 @@ export class Reports implements OnInit {
   protected readonly pivotMax = computed(() =>
     Math.max(1, ...this.pivot().flatMap((r) => Object.values(r.byMonth).map((v) => Math.abs(v)))),
   );
+
+  // --- report 1: drill-down ---------------------------------------------------
+  /** Currently opened pivot cell; null = panel closed. */
+  protected readonly drill = signal<{ category: string | null; from: string; to: string } | null>(null);
+  protected readonly drillRows = signal<CategoryDetail[]>([]);
+  protected readonly drillLoading = signal(false);
+  protected readonly drillTotal = computed(() => this.drillRows().reduce((s, r) => s + r.amountPln, 0));
+
+  /** category = null → all categories; month = null → whole selected range. */
+  protected openDrill(category: string | null, month: string | null): void {
+    const from = month ?? this.fromApplied();
+    const to = month ?? this.toApplied();
+    this.drill.set({ category, from, to });
+    this.drillLoading.set(true);
+    this.service.categoryMonthlyDetails(from, to, category ?? undefined).subscribe({
+      next: (rows) => {
+        this.drillRows.set(rows);
+        this.drillLoading.set(false);
+      },
+      error: (err) => {
+        this.error.set(err?.message ?? 'Nie udało się pobrać szczegółów.');
+        this.drillLoading.set(false);
+      },
+    });
+  }
+
+  protected closeDrill(): void {
+    this.drill.set(null);
+    this.drillRows.set([]);
+  }
+
+  protected drillTitle(): string {
+    const d = this.drill();
+    if (!d) return '';
+    const period = d.from === d.to ? d.from : `${d.from} – ${d.to}`;
+    return `${d.category ?? 'Wszystkie kategorie'} · ${period}`;
+  }
 
   // --- report 2: cashflow --------------------------------------------------
   protected readonly cashflowAccounts = computed(() => [...new Set(this.cashflowData().map((c) => c.account))].sort());
