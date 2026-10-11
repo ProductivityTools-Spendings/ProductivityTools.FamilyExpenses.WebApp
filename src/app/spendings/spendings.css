@@ -125,6 +125,11 @@ tr.duplicate {
   text-decoration: line-through;
 }
 
+/* When duplicates are shown, the canonical operation they point at is emphasised */
+tr.primary td {
+  font-weight: 700;
+}
+
 .dup-badge {
   margin-left: 0.4rem;
   padding: 0.05rem 0.4rem;

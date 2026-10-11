@@ -57,8 +57,10 @@
         </thead>
         <tbody>
           @for (s of visibleSpendings(); track s.id) {
-            <tr [class.negative]="s.amount < 0" [class.positive]="s.amount > 0" [class.duplicate]="s.duplicateOf !== null"
-                [title]="s.duplicateOf !== null ? 'Duplikat transakcji #' + s.duplicateOf : ''">
+            <tr [class.negative]="s.amount < 0" [class.positive]="s.amount > 0"
+                [class.duplicate]="s.duplicateOf !== null"
+                [class.primary]="!hideDuplicates() && isPrimary(s)"
+                [title]="s.duplicateOf !== null ? 'Duplikat transakcji #' + s.duplicateOf : (isPrimary(s) ? 'Operacja podstawowa – ma duplikat' : '')">
               <td>{{ s.id }}</td>
               <td>{{ s.operationDate }}</td>
               <td>{{ s.operationTime }}</td>

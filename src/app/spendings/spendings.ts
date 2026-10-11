@@ -24,6 +24,14 @@ export class Spendings implements OnInit {
     this.hideDuplicates() ? this.spendings().filter((s) => s.duplicateOf === null) : this.spendings(),
   );
   protected readonly duplicateCount = computed(() => this.spendings().filter((s) => s.duplicateOf !== null).length);
+  /** Ids of canonical rows that have at least one duplicate pointing at them. */
+  protected readonly primaryIds = computed(
+    () => new Set(this.spendings().filter((s) => s.duplicateOf !== null).map((s) => s.duplicateOf as number)),
+  );
+
+  protected isPrimary(s: Spending): boolean {
+    return this.primaryIds().has(s.id);
+  }
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
 
