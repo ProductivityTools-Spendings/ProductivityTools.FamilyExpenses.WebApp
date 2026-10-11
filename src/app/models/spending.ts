@@ -16,6 +16,8 @@ export interface Spending {
   details: string;
   createdAt: string;
   // spending_details (null when no details row exists yet)
+  /** FK to dictionary_account; `account` is the resolved name */
+  accountId: number | null;
   account: string | null;
   category: string | null;
   note: string | null;
