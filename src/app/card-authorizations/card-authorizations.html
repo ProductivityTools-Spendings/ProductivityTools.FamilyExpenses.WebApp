@@ -1,0 +1,72 @@
+<section class="auths">
+  <header class="auths__header">
+    <h2>Autoryzacje kart</h2>
+    <div class="auths__actions">
+      <span class="auths__count">
+        {{ visible().length }} pozycji ·
+        <button type="button" class="chip" [class.chip--active]="filter() === 'all'" (click)="setFilter('all')">wszystkie {{ authorizations().length }}</button>
+        <button type="button" class="chip chip--ok" [class.chip--active]="filter() === 'linked'" (click)="setFilter('linked')">rozliczone {{ linkedCount() }}</button>
+        <button type="button" class="chip chip--warn" [class.chip--active]="filter() === 'unlinked'" (click)="setFilter('unlinked')">nierozliczone {{ unlinkedCount() }}</button>
+      </span>
+      <button type="button" class="secondary" (click)="link()" [disabled]="linking() || loading()">
+        {{ linking() ? 'Łączenie…' : 'Powiąż z obciążeniami' }}
+      </button>
+      <button type="button" (click)="load()" [disabled]="loading() || linking()">Odśwież</button>
+    </div>
+  </header>
+
+  @if (statusMessage(); as msg) {
+    <p class="auths__status">{{ msg }}</p>
+  }
+
+  @if (loading()) {
+    <p class="auths__info">Ładowanie…</p>
+  } @else if (error()) {
+    <p class="auths__error">Błąd: {{ error() }}</p>
+  } @else if (visible().length === 0) {
+    <p class="auths__info">Brak autoryzacji.</p>
+  } @else {
+    <div class="auths__table-wrapper">
+      <table class="auths__table">
+        <thead>
+          <tr>
+            <th>Id</th>
+            <th>Data</th>
+            <th>Godzina</th>
+            <th>Karta</th>
+            <th>Sklep</th>
+            <th class="num">Kwota</th>
+            <th class="num">Dostępne</th>
+            <th>Rozliczenie</th>
+            <th>Konto</th>
+            <th>Kategoria</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (a of visible(); track a.id) {
+            <tr [class.unlinked]="a.settledBySpendingId === null" [title]="a.details">
+              <td>{{ a.id }}</td>
+              <td>{{ a.operationDate }}</td>
+              <td>{{ a.operationTime }}</td>
+              <td class="mono">{{ a.card }}</td>
+              <td class="merchant" [title]="a.merchant ?? ''">{{ a.merchant }}</td>
+              <td class="num">{{ a.amount | currency: (a.currency || 'PLN') : 'symbol-narrow' : '1.2-2' : 'pl' }}</td>
+              <td class="num muted">{{ a.amountLeft }} {{ a.amountLeftCurrency }}</td>
+              <td>
+                @if (a.settledBySpendingId !== null) {
+                  <span class="badge badge--ok" [title]="'Transakcja #' + a.settledBySpendingId">
+                    #{{ a.settledBySpendingId }} · {{ a.settledOperationDate }}
+                  </span>
+                } @else {
+                  <span class="badge badge--warn">brak</span>
+                }
+              </td>
+              <td>{{ a.settledAccount }}</td>
+              <td>{{ a.settledCategory }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>
