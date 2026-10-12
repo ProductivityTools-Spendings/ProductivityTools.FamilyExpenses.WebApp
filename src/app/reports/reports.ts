@@ -305,18 +305,25 @@ export class Reports implements OnInit {
     });
   }
 
-  /** Per displayed month: that month's net total and the rolling 12-month total (both over included categories). */
-  protected readonly matRows = computed<{ month: string; monthly: number; mat: number }[]>(() => {
+  /** Per displayed month: that month's net total and the rolling 12-month average (both over included categories). */
+  protected readonly matRows = computed<{ month: string; monthly: number; mat: number; window: number }[]>(() => {
     const excluded = this.matExcluded();
+    const first = this.firstMonth();
     const byMonth = new Map<string, number>();
     for (const r of this.matData()) {
       if (excluded.has(r.category)) continue;
       byMonth.set(r.month, (byMonth.get(r.month) ?? 0) + r.total);
     }
     return this.months().map((m) => {
-      let mat = 0;
-      for (let i = 0; i < 12; i++) mat += byMonth.get(shiftMonth(m, -i)) ?? 0;
-      return { month: m, monthly: byMonth.get(m) ?? 0, mat };
+      let sum = 0;
+      let window = 0;
+      for (let i = 0; i < 12; i++) {
+        const wm = shiftMonth(m, -i);
+        if (wm < first) break; // no data before the first month – don't dilute the average with empty months
+        window++;
+        sum += byMonth.get(wm) ?? 0;
+      }
+      return { month: m, monthly: byMonth.get(m) ?? 0, mat: window ? sum / window : 0, window };
     });
   });
 
@@ -325,7 +332,7 @@ export class Reports implements OnInit {
   protected readonly chartH = 280;
   protected readonly chartPad = { l: 70, r: 16, t: 12, b: 36 };
 
-  protected readonly matMax = computed(() => Math.max(1, ...this.matRows().map((r) => Math.abs(r.mat))));
+  protected readonly matMax = computed(() => Math.max(1, ...this.matRows().flatMap((r) => [Math.abs(r.mat), Math.abs(r.monthly)])));
 
   protected chartX(i: number): number {
     const n = Math.max(1, this.matRows().length - 1);

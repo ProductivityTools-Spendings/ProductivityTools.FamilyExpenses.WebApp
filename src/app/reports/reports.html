@@ -212,7 +212,7 @@
   <!-- ============ MAT 12 miesięcy ============ -->
   <section class="card">
     <div class="card__head">
-      <h3>MAT – suma krocząca 12 miesięcy</h3>
+      <h3>MAT – średnia krocząca 12 miesięcy</h3>
       <span class="muted">
         <button type="button" class="link" (click)="matSetAll(true)">wszystkie</button> ·
         <button type="button" class="link" (click)="matSetAll(false)">żadna</button>
@@ -240,7 +240,7 @@
         <path class="mat-line" [attr.d]="matPath()" />
         @for (r of matRows(); track r.month; let i = $index) {
           <circle class="mat-dot" [attr.cx]="chartX(i)" [attr.cy]="chartY(r.mat)" r="4">
-            <title>{{ r.month }}: MAT {{ r.mat | number: '1.0-0' : 'pl' }} zł</title>
+            <title>{{ r.month }}: średnia z {{ r.window }} mies. {{ r.mat | number: '1.0-0' : 'pl' }} zł</title>
           </circle>
           <text class="xlabel" [attr.x]="chartX(i)" [attr.y]="chartH - 12" text-anchor="middle">{{ r.month.slice(2) }}</text>
         }
@@ -250,11 +250,11 @@
           <thead><tr><th>Miesiąc</th>@for (r of matRows(); track r.month) { <th class="num">{{ r.month }}</th> }</tr></thead>
           <tbody>
             <tr><td>Miesiąc</td>@for (r of matRows(); track r.month) { <td class="num muted">{{ r.monthly | number: '1.0-0' : 'pl' }}</td> }</tr>
-            <tr><td><strong>MAT 12 m.</strong></td>@for (r of matRows(); track r.month) { <td class="num"><strong>{{ r.mat | number: '1.0-0' : 'pl' }}</strong></td> }</tr>
+            <tr><td><strong>Śr. 12 m.</strong></td>@for (r of matRows(); track r.month) { <td class="num" [title]="'średnia z ' + r.window + ' mies.'"><strong>{{ r.mat | number: '1.0-0' : 'pl' }}</strong></td> }</tr>
           </tbody>
         </table>
       </div>
-      <p class="muted">Linia = suma netto z ostatnich 12 miesięcy (kończących się w danym miesiącu) dla zaznaczonych kategorii; słupki = pojedyncze miesiące. Wybór kategorii jest zapamiętywany niezależnie od tabeli powyżej.</p>
+      <p class="muted">Linia = średnia miesięczna netto z ostatnich 12 miesięcy (kończących się w danym miesiącu) dla zaznaczonych kategorii; na początku historii średnia liczona jest z dostępnych miesięcy. Słupki = pojedyncze miesiące w tej samej skali. Wybór kategorii jest zapamiętywany niezależnie od tabeli powyżej.</p>
     }
   </section>
 
