@@ -66,6 +66,8 @@ export interface Hygiene {
   duplicates: number;
   proxyCategories: HygieneCategory[];
   uncategorizedSample: { id: number; operationDate: string; operationType: string; name: string; amountPln: number }[];
+  /** Earliest month (YYYY-MM) with any spending; null when the table is empty. */
+  firstMonth: string | null;
 }
 
 @Injectable({ providedIn: 'root' })

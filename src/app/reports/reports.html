@@ -8,6 +8,18 @@
     </form>
   </header>
 
+  <div class="ranges">
+    <button type="button" class="range" [class.range--active]="isLastMonths(12)" (click)="setLastMonths(12)">12 mies.</button>
+    <button type="button" class="range" [class.range--active]="isLastMonths(24)" (click)="setLastMonths(24)">24 mies.</button>
+    @for (y of years(); track y) {
+      <button type="button" class="range" [class.range--active]="isYear(y)" (click)="setYear(y)">{{ y }}</button>
+    }
+    <button type="button" class="range" [class.range--active]="isRange(firstMonth(), currentMonth)" (click)="setAll()">Wszystko</button>
+    <span class="ranges__sep"></span>
+    <button type="button" class="range" [disabled]="!canExtendBack() || loading()" (click)="extendBack(6)" title="Rozszerz zakres o 6 miesięcy wstecz">◀ +6 mies.</button>
+    <button type="button" class="range" [disabled]="!canExtendBack() || loading()" (click)="extendBack(12)" title="Rozszerz zakres o 12 miesięcy wstecz">◀ +12 mies.</button>
+  </div>
+
   <p class="reports__rules">
     Bez duplikatów, bez <code>PrzelewWlasny</code> i przewalutowań (<code>*.NAT.TR.FX</code>); kwoty w PLN (kurs NBP D‑1).
   </p>

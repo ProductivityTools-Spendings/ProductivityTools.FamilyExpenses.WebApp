@@ -60,8 +60,63 @@ export class Reports implements OnInit {
   private readonly service = inject(ReportService);
 
   // --- filters -------------------------------------------------------------
-  protected from = shiftMonth(ym(new Date()), -11);
-  protected to = ym(new Date());
+  protected readonly currentMonth = ym(new Date());
+  protected from = shiftMonth(this.currentMonth, -11);
+  protected to = this.currentMonth;
+
+  // --- quick ranges ----------------------------------------------------------
+  /** Earliest month with data (from hygiene); falls back to the current year when not loaded yet. */
+  protected readonly firstMonth = computed(() => this.hygiene()?.firstMonth ?? `${new Date().getFullYear()}-01`);
+
+  /** Years from the first month with data up to the current year – one quick button each. */
+  protected readonly years = computed(() => {
+    const first = Number(this.firstMonth().slice(0, 4));
+    const current = new Date().getFullYear();
+    const out: number[] = [];
+    for (let y = first; y <= current; y++) out.push(y);
+    return out;
+  });
+
+  /** Last N months ending with the current month. */
+  protected setLastMonths(n: number): void {
+    this.to = ym(new Date());
+    this.from = shiftMonth(this.to, -(n - 1));
+    this.load();
+  }
+
+  protected setYear(year: number): void {
+    this.from = `${year}-01`;
+    this.to = year === new Date().getFullYear() ? ym(new Date()) : `${year}-12`;
+    this.load();
+  }
+
+  protected setAll(): void {
+    this.from = this.firstMonth();
+    this.to = ym(new Date());
+    this.load();
+  }
+
+  /** Extends the range N months backwards, keeping the end date. */
+  protected extendBack(n: number): void {
+    this.from = shiftMonth(this.fromApplied(), -n);
+    this.to = this.toApplied();
+    this.load();
+  }
+
+  protected readonly canExtendBack = computed(() => this.fromApplied() > this.firstMonth());
+
+  protected isRange(from: string, to: string): boolean {
+    return this.fromApplied() === from && this.toApplied() === to;
+  }
+
+  protected isLastMonths(n: number): boolean {
+    const to = ym(new Date());
+    return this.isRange(shiftMonth(to, -(n - 1)), to);
+  }
+
+  protected isYear(year: number): boolean {
+    return this.isRange(`${year}-01`, year === new Date().getFullYear() ? ym(new Date()) : `${year}-12`);
+  }
 
   // --- data ----------------------------------------------------------------
   protected readonly loading = signal(false);

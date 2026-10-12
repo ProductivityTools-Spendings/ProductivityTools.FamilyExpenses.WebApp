@@ -69,6 +69,41 @@ button.link {
   font-size: 0.85rem;
 }
 
+/* quick ranges */
+.ranges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.ranges__sep {
+  width: 1px;
+  height: 1.2rem;
+  margin: 0 0.4rem;
+  background: #ddd;
+}
+
+button.range {
+  padding: 0.2rem 0.7rem;
+  border: 1px solid #bdbdbd;
+  border-radius: 999px;
+  background: #fff;
+  color: #333;
+  font-size: 0.82rem;
+}
+
+button.range:hover:not(:disabled) {
+  border-color: #1976d2;
+  color: #1976d2;
+}
+
+button.range--active {
+  border-color: #1976d2;
+  background: #1976d2;
+  color: #fff;
+}
+
 .reports__error {
   color: #c62828;
 }
