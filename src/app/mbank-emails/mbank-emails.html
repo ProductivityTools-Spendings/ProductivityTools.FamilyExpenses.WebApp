@@ -27,7 +27,7 @@
         @if (!isCurrentWindow()) {
           <button type="button" class="link" (click)="goToCurrentMonth()">dziś</button>
         }
-        <span class="cal__legend"><i class="dot dot--on"></i> e-mail <i class="dot dot--off"></i> brak <i class="dot dot--err"></i> błąd</span>
+        <span class="cal__legend"><i class="dot dot--on"></i> 1 e-mail <i class="dot dot--multi"></i> 2+ e-maile <i class="dot dot--off"></i> brak <span class="cal__legend-err">!</span> błąd</span>
       </div>
       <div class="cal__months">
         @for (m of calMonths(); track m.first.getTime()) {
@@ -40,11 +40,11 @@
               @for (w of weekdays; track w) { <div class="cal__wd">{{ w }}</div> }
               @for (c of m.cells; track c.key) {
                 @if (c.day) {
-                  <button type="button" class="cal__day" [class.cal__day--selected]="selectedDay() === c.key" [class.cal__day--future]="c.future"
+                  <button type="button" class="cal__day" [class.cal__day--selected]="selectedDay() === c.key" [class.cal__day--future]="c.future" [class.cal__day--error]="c.errors > 0"
                           (click)="selectDay(c)" [title]="c.key + ': ' + c.count + ' e-maili' + (c.errors ? ', błędów: ' + c.errors : '')">
                     <span class="cal__num">{{ c.day }}</span>
                     @if (!c.future) {
-                      <i class="dot" [class.dot--on]="c.count > 0 && !c.errors" [class.dot--err]="c.errors > 0" [class.dot--off]="c.count === 0"></i>
+                      <i class="dot" [class.dot--on]="c.count === 1" [class.dot--multi]="c.count > 1" [class.dot--off]="c.count === 0"></i>
                     }
                   </button>
                 } @else {

@@ -257,8 +257,28 @@ button.link {
   background: #d0d0d0;
 }
 
-.dot--err {
+.dot--multi {
   background: #e53935;
+}
+
+/* day with an e-mail in ERROR status */
+.cal__day--error {
+  background: #ffebee;
+}
+
+.cal__day--error .cal__num {
+  color: #c62828;
+  font-weight: 600;
+}
+
+.cal__legend-err {
+  display: inline-block;
+  margin: 0 0.2rem 0 0.4rem;
+  padding: 0 0.3rem;
+  border-radius: 3px;
+  background: #ffebee;
+  color: #c62828;
+  font-weight: 600;
 }
 
 button.link {
