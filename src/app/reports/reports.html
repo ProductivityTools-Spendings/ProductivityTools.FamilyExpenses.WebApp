@@ -227,7 +227,7 @@
     </div>
 
     @if (matRows().length > 0) {
-      <svg class="mat-chart" [attr.viewBox]="'0 0 ' + chartW + ' ' + chartH" preserveAspectRatio="none" role="img" aria-label="Wykres MAT">
+      <svg class="mat-chart" [attr.viewBox]="'0 0 ' + chartW + ' ' + chartH" role="img" aria-label="Wykres MAT">
         @for (t of matTicks(); track t.y) {
           <line [attr.x1]="chartPad.l" [attr.x2]="chartW - chartPad.r" [attr.y1]="t.y" [attr.y2]="t.y" class="grid" />
           <text [attr.x]="chartPad.l - 8" [attr.y]="t.y + 4" class="ylabel">{{ t.value | number: '1.0-0' : 'pl' }}</text>

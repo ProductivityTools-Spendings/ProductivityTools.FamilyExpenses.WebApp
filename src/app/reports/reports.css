@@ -445,7 +445,8 @@ td.selected {
 
 .mat-chart {
   width: 100%;
-  height: 260px;
+  max-width: 1200px;
+  height: auto;
   display: block;
   margin-bottom: 0.75rem;
 }

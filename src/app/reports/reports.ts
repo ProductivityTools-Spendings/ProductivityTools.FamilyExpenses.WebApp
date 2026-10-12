@@ -321,8 +321,8 @@ export class Reports implements OnInit {
   });
 
   // SVG chart geometry
-  protected readonly chartW = 900;
-  protected readonly chartH = 260;
+  protected readonly chartW = 1200;
+  protected readonly chartH = 280;
   protected readonly chartPad = { l: 70, r: 16, t: 12, b: 36 };
 
   protected readonly matMax = computed(() => Math.max(1, ...this.matRows().map((r) => Math.abs(r.mat))));
