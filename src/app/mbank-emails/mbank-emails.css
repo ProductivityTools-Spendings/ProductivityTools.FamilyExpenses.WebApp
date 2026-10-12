@@ -132,7 +132,6 @@ tr.row--error {
 
 /* monthly calendar */
 .cal {
-  display: inline-block;
   margin-bottom: 1rem;
   padding: 0.6rem 0.8rem;
   border: 1px solid #e0e0e0;
@@ -165,15 +164,35 @@ button.link {
 }
 
 .cal__title {
-  min-width: 9rem;
+  min-width: 11rem;
   text-align: center;
   font-weight: 600;
   text-transform: capitalize;
 }
 
+.cal__months {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr));
+  gap: 0.75rem 1rem;
+}
+
+.cal__month-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.2rem;
+  font-size: 0.82rem;
+  text-transform: capitalize;
+}
+
+.cal__nav:disabled {
+  color: #bbb;
+  cursor: default;
+}
+
 .cal__summary {
-  margin-left: 0.75rem;
-  color: #666;
+  color: #888;
+  font-size: 0.75rem;
 }
 
 .cal__legend {
@@ -188,8 +207,8 @@ button.link {
 
 .cal__grid {
   display: grid;
-  grid-template-columns: repeat(7, 2.2rem);
-  gap: 2px;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
 }
 
 .cal__wd {
@@ -202,10 +221,11 @@ button.link {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 0.2rem 0;
+  gap: 1px;
+  padding: 0.1rem 0;
   border-radius: 4px;
-  font-size: 0.8rem;
+  font-size: 0.72rem;
+  line-height: 1.1;
 }
 
 .cal__day:hover {
@@ -223,8 +243,8 @@ button.link {
 
 .dot {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   vertical-align: middle;
 }

@@ -12,6 +12,13 @@ interface CalendarCell {
   future: boolean;
 }
 
+/** One month of the 12-month grid. */
+interface CalendarMonth {
+  first: Date;
+  cells: CalendarCell[];
+  daysWithEmail: number;
+}
+
 function dayKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
@@ -34,7 +41,8 @@ export class MbankEmails implements OnInit {
 
   // --- calendar --------------------------------------------------------------
   protected readonly weekdays = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
-  /** First day of the displayed month. */
+  protected readonly MONTHS_SHOWN = 12;
+  /** First day of the last (newest) displayed month; the grid shows this month and the 11 before it. */
   protected readonly calMonth = signal(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   /** Day (yyyy-MM-dd) the list is filtered to; null = all e-mails. */
   protected readonly selectedDay = signal<string | null>(null);
@@ -53,25 +61,31 @@ export class MbankEmails implements OnInit {
     return map;
   });
 
-  protected readonly calCells = computed<CalendarCell[]>(() => {
-    const first = this.calMonth();
+  /** 12 months, oldest first, each with its Monday-first cell grid and the number of days with e-mails. */
+  protected readonly calMonths = computed<CalendarMonth[]>(() => {
+    const last = this.calMonth();
     const byDay = this.byDay();
     const todayKey = dayKey(new Date());
-    const daysInMonth = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
-    const lead = (first.getDay() + 6) % 7; // Monday-first
-    const cells: CalendarCell[] = [];
-    for (let i = 0; i < lead; i++) cells.push({ day: null, key: `blank-${i}`, count: 0, errors: 0, future: false });
-    for (let d = 1; d <= daysInMonth; d++) {
-      const key = dayKey(new Date(first.getFullYear(), first.getMonth(), d));
-      const stats = byDay.get(key);
-      cells.push({ day: d, key, count: stats?.count ?? 0, errors: stats?.errors ?? 0, future: key > todayKey });
+    const out: CalendarMonth[] = [];
+    for (let i = this.MONTHS_SHOWN - 1; i >= 0; i--) {
+      const first = new Date(last.getFullYear(), last.getMonth() - i, 1);
+      const daysInMonth = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+      const lead = (first.getDay() + 6) % 7;
+      const cells: CalendarCell[] = [];
+      for (let b = 0; b < lead; b++) cells.push({ day: null, key: `blank-${b}`, count: 0, errors: 0, future: false });
+      let daysWithEmail = 0;
+      for (let d = 1; d <= daysInMonth; d++) {
+        const key = dayKey(new Date(first.getFullYear(), first.getMonth(), d));
+        const stats = byDay.get(key);
+        if (stats) daysWithEmail++;
+        cells.push({ day: d, key, count: stats?.count ?? 0, errors: stats?.errors ?? 0, future: key > todayKey });
+      }
+      out.push({ first, cells, daysWithEmail });
     }
-    return cells;
+    return out;
   });
 
-  /** Days with at least one e-mail in the displayed month. */
-  protected readonly calMonthCount = computed(() => this.calCells().filter((c) => c.count > 0).length);
-
+  /** Moves the whole 12-month window by `delta` months. */
   protected shiftMonth(delta: number): void {
     const m = this.calMonth();
     this.calMonth.set(new Date(m.getFullYear(), m.getMonth() + delta, 1));
@@ -80,6 +94,12 @@ export class MbankEmails implements OnInit {
   protected goToCurrentMonth(): void {
     this.calMonth.set(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   }
+
+  protected readonly isCurrentWindow = computed(() => {
+    const now = new Date();
+    const m = this.calMonth();
+    return m.getFullYear() === now.getFullYear() && m.getMonth() === now.getMonth();
+  });
 
   protected selectDay(cell: CalendarCell): void {
     if (!cell.day) return;
