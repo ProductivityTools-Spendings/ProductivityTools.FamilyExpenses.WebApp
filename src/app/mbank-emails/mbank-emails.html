@@ -16,11 +16,45 @@
     <p class="emails__error">Błąd: {{ error() }}</p>
   }
 
+  @if (!loading() && emails().length > 0) {
+    <div class="cal">
+      <div class="cal__head">
+        <button type="button" class="cal__nav" (click)="shiftMonth(-1)" title="Poprzedni miesiąc">◀</button>
+        <button type="button" class="cal__title" (click)="goToCurrentMonth()" title="Bieżący miesiąc">{{ calMonth() | date: 'LLLL yyyy' : undefined : 'pl' }}</button>
+        <button type="button" class="cal__nav" (click)="shiftMonth(1)" title="Następny miesiąc">▶</button>
+        <span class="cal__summary">{{ calMonthCount() }} dni z e-mailem</span>
+        <span class="cal__legend"><i class="dot dot--on"></i> e-mail <i class="dot dot--off"></i> brak <i class="dot dot--err"></i> błąd</span>
+      </div>
+      <div class="cal__grid">
+        @for (w of weekdays; track w) { <div class="cal__wd">{{ w }}</div> }
+        @for (c of calCells(); track c.key) {
+          @if (c.day) {
+            <button type="button" class="cal__day" [class.cal__day--selected]="selectedDay() === c.key" [class.cal__day--future]="c.future"
+                    (click)="selectDay(c)" [title]="c.key + ': ' + c.count + ' e-maili' + (c.errors ? ', błędów: ' + c.errors : '')">
+              <span class="cal__num">{{ c.day }}</span>
+              @if (!c.future) {
+                <i class="dot" [class.dot--on]="c.count > 0 && !c.errors" [class.dot--err]="c.errors > 0" [class.dot--off]="c.count === 0"></i>
+              }
+            </button>
+          } @else {
+            <div></div>
+          }
+        }
+      </div>
+    </div>
+  }
+
   @if (loading()) {
     <p class="emails__info">Ładowanie…</p>
   } @else if (emails().length === 0) {
     <p class="emails__info">Brak e-maili.</p>
   } @else {
+    @if (selectedDay(); as day) {
+      <p class="emails__info">
+        Filtr: <strong>{{ day }}</strong> · {{ visibleEmails().length }} e-maili
+        <button type="button" class="link" (click)="clearDay()">pokaż wszystkie</button>
+      </p>
+    }
     <div class="emails__table-wrapper">
       <table class="emails__table">
         <thead>
@@ -38,7 +72,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (e of emails(); track e.id) {
+          @for (e of visibleEmails(); track e.id) {
             <tr [class.row--error]="e.status === 'ERROR'">
               <td>{{ e.id }}</td>
               <td>{{ e.emailDate | date: 'yyyy-MM-dd HH:mm' }}</td>

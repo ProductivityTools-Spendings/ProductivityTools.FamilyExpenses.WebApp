@@ -129,3 +129,120 @@ tr.row--error {
   background: #ffebee;
   color: #c62828;
 }
+
+/* monthly calendar */
+.cal {
+  display: inline-block;
+  margin-bottom: 1rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.cal__head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.85rem;
+}
+
+.cal__nav,
+.cal__title,
+.cal__day,
+button.link {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.cal__nav {
+  color: #1976d2;
+  padding: 0 0.3rem;
+}
+
+.cal__title {
+  min-width: 9rem;
+  text-align: center;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.cal__summary {
+  margin-left: 0.75rem;
+  color: #666;
+}
+
+.cal__legend {
+  margin-left: 0.75rem;
+  color: #888;
+  font-size: 0.78rem;
+}
+
+.cal__legend .dot {
+  margin: 0 0.2rem 0 0.4rem;
+}
+
+.cal__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 2.2rem);
+  gap: 2px;
+}
+
+.cal__wd {
+  text-align: center;
+  font-size: 0.72rem;
+  color: #888;
+}
+
+.cal__day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 0.2rem 0;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.cal__day:hover {
+  background: #f0f7ff;
+}
+
+.cal__day--selected {
+  background: #e3f2fd;
+  outline: 1px solid #1976d2;
+}
+
+.cal__day--future .cal__num {
+  color: #bbb;
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.dot--on {
+  background: #43a047;
+}
+
+.dot--off {
+  background: #d0d0d0;
+}
+
+.dot--err {
+  background: #e53935;
+}
+
+button.link {
+  margin-left: 0.5rem;
+  color: #1976d2;
+  text-decoration: underline;
+}
