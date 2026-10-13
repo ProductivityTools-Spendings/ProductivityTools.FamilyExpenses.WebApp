@@ -64,4 +64,41 @@
       </table>
     </div>
   }
+
+  @if (!loading() && !error() && refunds().length > 0) {
+    <header class="auths__header" style="margin-top: 1.5rem">
+      <h2>Zwroty Allegro</h2>
+      <span class="auths__count">{{ refunds().length }} zwrotów · razem {{ refundsTotal() | currency: 'PLN' : 'symbol-narrow' : '1.2-2' : 'pl' }}</span>
+    </header>
+    <div class="auths__table-wrapper">
+      <table class="auths__table">
+        <thead>
+          <tr>
+            <th>Id</th>
+            <th>Data zwrotu</th>
+            <th>E-mail</th>
+            <th>Sprzedający</th>
+            <th>Za zakup</th>
+            <th class="num">Kwota zwrotu</th>
+            <th class="num">Zamówienie</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of refunds(); track r.id) {
+            <tr>
+              <td>{{ r.id }}</td>
+              <td>{{ r.refundDate }}</td>
+              <td class="mono" [title]="r.emailSubject ?? ''">#{{ r.allegroRawEmailId }}</td>
+              <td>{{ r.seller }}</td>
+              <td class="merchant" [title]="r.description ?? ''">{{ r.description }}</td>
+              <td class="num"><strong>{{ r.amount | currency: 'PLN' : 'symbol-narrow' : '1.2-2' : 'pl' }}</strong></td>
+              <td class="num muted">@if (r.originalAmount !== null) { {{ r.originalAmount | currency: 'PLN' : 'symbol-narrow' : '1.2-2' : 'pl' }} }</td>
+              <td>@if (r.partial) { <span class="badge badge--warn">częściowy</span> } @else { <span class="badge badge--ok">pełny</span> }</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
 </section>
