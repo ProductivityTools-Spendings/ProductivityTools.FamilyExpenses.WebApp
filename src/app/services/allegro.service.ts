@@ -18,20 +18,6 @@ export interface AllegroRawEmail {
   linkedSpendingId: number | null;
 }
 
-/** Mirrors AllegroRefundResponse from the WebApi. */
-export interface AllegroRefund {
-  id: number;
-  allegroRawEmailId: number;
-  operationId: string;
-  refundDate: string;
-  amount: number;
-  originalAmount: number | null;
-  partial: boolean;
-  seller: string | null;
-  description: string | null;
-  emailSubject: string | null;
-}
-
 export interface AllegroPurchase {
   id: number;
   allegroRawEmailId: number;
@@ -74,9 +60,5 @@ export class AllegroService {
 
   getPurchases(): Observable<AllegroPurchase[]> {
     return this.http.get<AllegroPurchase[]>(`${this.baseUrl}/purchases`);
-  }
-
-  getRefunds(): Observable<AllegroRefund[]> {
-    return this.http.get<AllegroRefund[]>(`${this.baseUrl}/refunds`);
   }
 }

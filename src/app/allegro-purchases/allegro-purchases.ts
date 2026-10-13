@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
-import { forkJoin } from 'rxjs';
-import { AllegroPurchase, AllegroRefund, AllegroService } from '../services/allegro.service';
+import { AllegroPurchase, AllegroService } from '../services/allegro.service';
 
 type Filter = 'all' | 'linked' | 'unlinked';
 
@@ -16,8 +15,6 @@ export class AllegroPurchases implements OnInit {
   private readonly service = inject(AllegroService);
 
   protected readonly purchases = signal<AllegroPurchase[]>([]);
-  protected readonly refunds = signal<AllegroRefund[]>([]);
-  protected readonly refundsTotal = computed(() => this.refunds().reduce((s, r) => s + r.amount, 0));
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly filter = signal<Filter>('all');
@@ -43,10 +40,9 @@ export class AllegroPurchases implements OnInit {
   protected load(): void {
     this.loading.set(true);
     this.error.set(null);
-    forkJoin({ purchases: this.service.getPurchases(), refunds: this.service.getRefunds() }).subscribe({
-      next: ({ purchases, refunds }) => {
-        this.purchases.set(purchases);
-        this.refunds.set(refunds);
+    this.service.getPurchases().subscribe({
+      next: (data) => {
+        this.purchases.set(data);
         this.loading.set(false);
       },
       error: (err) => {
