@@ -109,6 +109,46 @@ export function totalSeries(m: DailyMonth, excluded: ReadonlySet<string>): numbe
   return out;
 }
 
+/** One row of the per-category comparison table under the cumulative chart. */
+export interface CategoryCompareRow {
+  category: string;
+  /** Net cumulative in the current month up to the last drawn day (0 when absent from the month). */
+  cur: number;
+  /** Previous month's net cumulative at the same day index (clipped to that month's length). */
+  prevSameDay: number;
+  /** Previous month's net total (cumulative at its last day). */
+  prevTotal: number;
+  /** cur − prevSameDay; positive = less spent than a month ago (negative-expenses convention). */
+  diff: number;
+}
+
+/**
+ * Compares every category of `categories` between the current and the previous month
+ * at the given number of elapsed days. Categories missing from a month contribute 0.
+ */
+export function compareRows(cur: DailyMonth, prev: DailyMonth, categories: readonly string[], elapsed: number): CategoryCompareRow[] {
+  const curIdx = Math.min(elapsed, cur.days) - 1;
+  const prevIdx = Math.min(elapsed, prev.days) - 1;
+  return categories.map((category) => {
+    const c = curIdx >= 0 ? (cur.cumulative[category]?.[curIdx] ?? 0) : 0;
+    const p = prevIdx >= 0 ? (prev.cumulative[category]?.[prevIdx] ?? 0) : 0;
+    const t = prev.cumulative[category]?.[prev.days - 1] ?? 0;
+    return { category, cur: c, prevSameDay: p, prevTotal: t, diff: c - p };
+  });
+}
+
+/** Sums of the three amount columns over rows whose category is not in `excluded`. */
+export function compareTotals(rows: readonly CategoryCompareRow[], excluded: ReadonlySet<string>): { cur: number; prevSameDay: number; prevTotal: number } {
+  const out = { cur: 0, prevSameDay: 0, prevTotal: 0 };
+  for (const r of rows) {
+    if (excluded.has(r.category)) continue;
+    out.cur += r.cur;
+    out.prevSameDay += r.prevSameDay;
+    out.prevTotal += r.prevTotal;
+  }
+  return out;
+}
+
 /** Linear end-of-month projection: total so far scaled from the elapsed days to the whole month. */
 export function forecast(totalSoFar: number, daysElapsed: number, days: number): number {
   if (daysElapsed <= 0) return 0;

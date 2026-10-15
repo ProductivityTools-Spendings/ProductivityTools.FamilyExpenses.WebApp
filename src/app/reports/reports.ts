@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { CategoryDetail, CategoryMonth, Hygiene, RecurringPayment, ReportService } from '../services/report.service';
-import { aggregateMonth, dayLabel, elapsedDays, forecast, mergeCategories, niceStep, NO_CATEGORY, ticks, totalSeries } from './daily-cumulative';
+import { aggregateMonth, compareRows, compareTotals, dayLabel, elapsedDays, forecast, mergeCategories, niceStep, NO_CATEGORY, ticks, totalSeries } from './daily-cumulative';
 
 /** One stacked-bar segment of the cumulative daily chart. */
 interface DailySegment {
@@ -426,6 +426,19 @@ export class Reports implements OnInit {
       return next;
     });
   }
+
+  protected readonly dailyAllIncluded = computed(() => this.dailyCategories().every((c) => !this.dailyExcluded().has(c)));
+
+  /** Header checkbox of the per-month category table: all → none, otherwise → all. */
+  protected toggleDailyAll(): void {
+    this.dailySetAll(!this.dailyAllIncluded());
+  }
+
+  /** Per-category comparison with the previous month at the last drawn day (table under the chart). */
+  protected readonly dailyTableRows = computed(() => compareRows(this.dailyCur(), this.dailyPrev(), this.dailyCategories(), this.dailyElapsed()));
+
+  /** Footer sums over included categories; `cur`/`prevSameDay` match dailyTotal()/dailyPrevSameDay(). */
+  protected readonly dailyTableTotals = computed(() => compareTotals(this.dailyTableRows(), this.dailyExcluded()));
 
   protected setDailyMonth(month: string): void {
     this.dailyMonth.set(month);
