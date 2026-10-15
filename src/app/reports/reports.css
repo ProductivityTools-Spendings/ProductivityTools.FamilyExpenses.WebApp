@@ -480,3 +480,57 @@ td.selected {
 .mat-chart .mat-dot {
   fill: #1976d2;
 }
+
+
+/* daily cumulative */
+.daily-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.daily-nav button.link {
+  text-decoration: none;
+}
+
+.daily-summary {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+}
+
+.daily-chart .future {
+  fill: #f3f3f3;
+}
+
+.daily-chart .grid.zero {
+  stroke: #9e9e9e;
+}
+
+.daily-chart .xlabel.today {
+  font-weight: 700;
+  fill: #333;
+}
+
+.daily-chart .seg:hover {
+  opacity: 0.8;
+  outline: none;
+}
+
+.daily-chart .prev-line {
+  fill: none;
+  stroke: #9e9e9e;
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+  pointer-events: none;
+}
+
+.daily-chart .prev-label,
+.daily-chart .total-label {
+  font-size: 11px;
+  fill: #757575;
+}
+
+.daily-chart .total-label {
+  font-weight: 600;
+  fill: #333;
+}

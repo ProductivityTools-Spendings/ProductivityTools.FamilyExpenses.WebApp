@@ -1,9 +1,26 @@
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
-import { CurrencyPipe, DecimalPipe } from '@angular/common';
+import { CurrencyPipe, DecimalPipe, formatNumber } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { CategoryDetail, CategoryMonth, Hygiene, RecurringPayment, ReportService } from '../services/report.service';
+import { aggregateMonth, dayLabel, elapsedDays, forecast, mergeCategories, niceStep, NO_CATEGORY, ticks, totalSeries } from './daily-cumulative';
+
+/** One stacked-bar segment of the cumulative daily chart. */
+interface DailySegment {
+  key: string;
+  category: string;
+  day: number;
+  date: string;
+  x: number;
+  y: number;
+  h: number;
+  color: string;
+  amount: number;
+  cum: number;
+  cumTotal: number;
+  tip: string;
+}
 
 /** Row of the category × month pivot (report 1). */
 interface PivotRow {
@@ -355,6 +372,213 @@ export class Reports implements OnInit {
     return this.chartH - this.chartPad.b - this.chartY(value);
   }
 
+  // --- daily cumulative: "Wydatki narastająco" ------------------------------
+  private static readonly DAILY_EXCLUDED_KEY = 'reports.daily.excludedCategories';
+  protected readonly dailyExcluded = signal<Set<string>>(new Set(JSON.parse(localStorage.getItem(Reports.DAILY_EXCLUDED_KEY) ?? '[]')));
+  /** Month shown in the chart ('YYYY-MM'); independent of the page's Od–Do filter. */
+  protected readonly dailyMonth = signal(this.currentMonth);
+  protected readonly dailyLoading = signal(false);
+  protected readonly dailyRows = signal<CategoryDetail[]>([]);
+  protected readonly dailyPrevRows = signal<CategoryDetail[]>([]);
+
+  protected readonly dailyCur = computed(() => aggregateMonth(this.dailyRows(), this.dailyMonth()));
+  protected readonly dailyPrev = computed(() => aggregateMonth(this.dailyPrevRows(), shiftMonth(this.dailyMonth(), -1)));
+  /** All categories (legend): current month's order, then categories present only in the previous month. */
+  protected readonly dailyCategories = computed(() => mergeCategories(this.dailyCur(), this.dailyPrev()));
+  protected readonly dailyColors = computed(() => new Map(this.dailyCategories().map((c, i) => [c, PIE_COLORS[i % PIE_COLORS.length]])));
+  protected readonly dailyIsCurrent = computed(() => this.dailyMonth() === this.currentMonth);
+  /** Days drawn as bars: whole month for past months, up to today for the current one. */
+  protected readonly dailyElapsed = computed(() => elapsedDays(this.dailyMonth(), new Date()));
+  protected readonly dailyTotals = computed(() => totalSeries(this.dailyCur(), this.dailyExcluded()));
+  protected readonly dailyPrevTotals = computed(() => totalSeries(this.dailyPrev(), this.dailyExcluded()));
+  /** Net total of included categories up to today (or the whole month). */
+  protected readonly dailyTotal = computed(() => (this.dailyElapsed() ? this.dailyTotals()[this.dailyElapsed() - 1] : 0));
+  /** Previous month's cumulative total at the same day index. */
+  protected readonly dailyPrevSameDay = computed(() => {
+    const p = this.dailyPrevTotals();
+    const e = Math.min(this.dailyElapsed(), p.length);
+    return e ? p[e - 1] : 0;
+  });
+  protected readonly dailyForecast = computed(() => forecast(this.dailyTotal(), this.dailyElapsed(), this.dailyCur().days));
+  protected readonly dailyMonthLabel = computed(() => {
+    const [y, m] = this.dailyMonth().split('-').map(Number);
+    return new Date(y, m - 1, 1).toLocaleDateString('pl', { month: 'long', year: 'numeric' });
+  });
+
+  protected dailyIncluded(category: string): boolean {
+    return !this.dailyExcluded().has(category);
+  }
+
+  protected toggleDailyCategory(category: string): void {
+    this.dailyExcluded.update((set) => {
+      const next = new Set(set);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      localStorage.setItem(Reports.DAILY_EXCLUDED_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }
+
+  protected dailySetAll(include: boolean): void {
+    this.dailyExcluded.update(() => {
+      const next = include ? new Set<string>() : new Set(this.dailyCategories());
+      localStorage.setItem(Reports.DAILY_EXCLUDED_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }
+
+  protected setDailyMonth(month: string): void {
+    this.dailyMonth.set(month);
+    this.loadDaily();
+  }
+
+  protected shiftDailyMonth(delta: number): void {
+    this.setDailyMonth(shiftMonth(this.dailyMonth(), delta));
+  }
+
+  /** Opens the transactions panel for a segment; rows without a category open the whole month. */
+  protected dailyDrill(category: string): void {
+    this.openDrill(category === NO_CATEGORY ? null : category, this.dailyMonth());
+  }
+
+  protected loadDaily(): void {
+    const month = this.dailyMonth();
+    const prev = shiftMonth(month, -1);
+    this.dailyLoading.set(true);
+    forkJoin({
+      cur: this.service.categoryMonthlyDetails(month, month),
+      prev: this.service.categoryMonthlyDetails(prev, prev),
+    }).subscribe({
+      next: ({ cur, prev: prevRows }) => {
+        if (this.dailyMonth() !== month) return; // stale response after a quick month change
+        this.dailyRows.set(cur);
+        this.dailyPrevRows.set(prevRows);
+        this.dailyLoading.set(false);
+      },
+      error: (err) => {
+        this.error.set(err?.message ?? 'Nie udało się pobrać dziennych wydatków.');
+        this.dailyLoading.set(false);
+      },
+    });
+  }
+
+  // daily chart geometry (spending drawn upwards, net inflows below the zero axis)
+  protected readonly dailyW = 1200;
+  protected readonly dailyH = 320;
+  protected readonly dailyPad = { l: 70, r: 16, t: 28, b: 36 };
+  protected readonly dailySlot = computed(() => (this.dailyW - this.dailyPad.l - this.dailyPad.r) / this.dailyCur().days);
+
+  /** Left edge of the day's cell (1-based day). */
+  protected dailyX(day: number): number {
+    return this.dailyPad.l + (day - 1) * this.dailySlot();
+  }
+
+  protected dailyCX(day: number): number {
+    return this.dailyX(day) + this.dailySlot() / 2;
+  }
+
+  /** Y range: `up` = largest stacked spending, `down` = largest stacked net inflow (both ≥ 0, in PLN). */
+  protected readonly dailyScale = computed(() => {
+    const cur = this.dailyCur();
+    const excluded = this.dailyExcluded();
+    let up = 0;
+    let down = 0;
+    for (let i = 0; i < this.dailyElapsed(); i++) {
+      let u = 0;
+      let d = 0;
+      for (const c of cur.categories) {
+        if (excluded.has(c)) continue;
+        const v = cur.cumulative[c][i];
+        if (v < 0) u -= v;
+        else d += v;
+      }
+      up = Math.max(up, u);
+      down = Math.max(down, d);
+    }
+    for (const v of this.dailyPrevTotals().slice(0, cur.days)) {
+      if (v < 0) up = Math.max(up, -v);
+      else down = Math.max(down, v);
+    }
+    const step = niceStep(up + down || 1);
+    up = Math.max(up, step);
+    const k = (this.dailyH - this.dailyPad.t - this.dailyPad.b) / (up + down);
+    return { up, down, step, k, zeroY: this.dailyPad.t + up * k };
+  });
+
+  /** SVG y of a net value (negative = spending → above the zero axis). */
+  protected dailyY(net: number): number {
+    const s = this.dailyScale();
+    return s.zeroY + net * s.k;
+  }
+
+  /** Gridlines labelled with net values (spending negative), like the MAT chart. */
+  protected readonly dailyTicks = computed(() => {
+    const s = this.dailyScale();
+    return ticks(s.up, s.down, s.step).map((v) => ({ y: this.dailyY(-v), value: -v }));
+  });
+
+  protected readonly dailySegments = computed<DailySegment[]>(() => {
+    const cur = this.dailyCur();
+    const excluded = this.dailyExcluded();
+    const colors = this.dailyColors();
+    const totals = this.dailyTotals();
+    const { zeroY, k } = this.dailyScale();
+    const slot = this.dailySlot();
+    const w = slot * 0.72;
+    const out: DailySegment[] = [];
+    for (let i = 0; i < this.dailyElapsed(); i++) {
+      let upAcc = 0;
+      let downAcc = 0;
+      for (const c of cur.categories) {
+        if (excluded.has(c)) continue;
+        const cum = cur.cumulative[c][i];
+        if (!cum) continue;
+        const h = Math.abs(cum) * k;
+        let y: number;
+        if (cum < 0) {
+          upAcc += h;
+          y = zeroY - upAcc;
+        } else {
+          y = zeroY + downAcc;
+          downAcc += h;
+        }
+        const amount = cur.daily[c][i];
+        const pln = (v: number) => `${formatNumber(v, 'pl', '1.2-2')} zł`;
+        out.push({
+          key: `${i}|${c}`, category: c, day: i + 1, date: dayLabel(cur.month, i + 1),
+          x: this.dailyX(i + 1) + (slot - w) / 2, y, h, color: colors.get(c) ?? PIE_COLORS[0],
+          amount, cum, cumTotal: totals[i],
+          tip: `${dayLabel(cur.month, i + 1)} · ${c}\ndzień: ${pln(amount)}\nnarastająco w kategorii: ${pln(cum)}\nnarastająco razem: ${pln(totals[i])}`,
+        });
+      }
+    }
+    return out;
+  });
+
+  protected readonly dailyBarW = computed(() => this.dailySlot() * 0.72);
+
+  /** Previous month's cumulative total by day index (clipped to the current month's length). */
+  protected readonly dailyPrevPoints = computed(() =>
+    this.dailyPrevTotals()
+      .slice(0, this.dailyCur().days)
+      .map((v, i) => `${this.dailyCX(i + 1).toFixed(1)},${this.dailyY(v).toFixed(1)}`)
+      .join(' '),
+  );
+
+  protected readonly dailyPrevLast = computed(() => {
+    const p = this.dailyPrevTotals().slice(0, this.dailyCur().days);
+    return p.length ? { x: this.dailyCX(p.length), y: this.dailyY(p[p.length - 1]) } : null;
+  });
+
+  /** Y of the net-total label above the last drawn bar. */
+  protected readonly dailyLabelY = computed(() => {
+    const e = this.dailyElapsed();
+    const ys = this.dailySegments().filter((s) => s.day === e).map((s) => s.y);
+    return (ys.length ? Math.min(...ys) : this.dailyScale().zeroY) - 6;
+  });
+
+  protected readonly dailyDays = computed(() => Array.from({ length: this.dailyCur().days }, (_, i) => i + 1));
+
   // --- report 8: recurring ------------------------------------------------
   protected readonly showInactive = signal(false);
   protected readonly recurringRows = computed(() =>
@@ -366,6 +590,7 @@ export class Reports implements OnInit {
 
   ngOnInit(): void {
     this.load();
+    this.loadDaily();
   }
 
   protected load(): void {

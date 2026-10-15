@@ -209,6 +209,69 @@
     }
   </section>
 
+  <!-- ============ Cumulative daily spending ("Wydatki narastająco") ============ -->
+  <section class="card">
+    <div class="card__head">
+      <h3>Wydatki narastająco</h3>
+      <span class="muted daily-nav">
+        <button type="button" class="link" (click)="shiftDailyMonth(-1)" title="Poprzedni miesiąc">◀</button>
+        <strong>{{ dailyMonthLabel() }}</strong>
+        <button type="button" class="link" [disabled]="dailyIsCurrent()" (click)="shiftDailyMonth(1)" title="Następny miesiąc">▶</button>
+        @if (!dailyIsCurrent()) { · <button type="button" class="link" (click)="setDailyMonth(currentMonth)">dziś</button> }
+      </span>
+    </div>
+    @if (dailyLoading()) {
+      <p class="muted">Ładowanie…</p>
+    } @else {
+      <p class="daily-summary">
+        {{ dailyIsCurrent() ? 'do dziś' : 'cały miesiąc' }}: <strong>{{ dailyTotal() | number: '1.0-0' : 'pl' }} zł</strong>
+        @if (dailyIsCurrent() && dailyElapsed() > 0) {
+          · prognoza na koniec miesiąca: <strong>~{{ dailyForecast() | number: '1.0-0' : 'pl' }} zł</strong>
+        }
+        <span class="muted">· poprzedni miesiąc do {{ dailyElapsed() }}. dnia: {{ dailyPrevSameDay() | number: '1.0-0' : 'pl' }} zł</span>
+      </p>
+      <svg class="mat-chart daily-chart" [attr.viewBox]="'0 0 ' + dailyW + ' ' + dailyH" role="img" aria-label="Wydatki narastająco">
+        @for (d of dailyDays(); track d) {
+          @if (d > dailyElapsed()) {
+            <rect class="future" [attr.x]="dailyX(d)" [attr.y]="dailyPad.t" [attr.width]="dailySlot()" [attr.height]="dailyH - dailyPad.t - dailyPad.b" />
+          }
+          <text class="xlabel" [class.today]="d === dailyElapsed() && dailyIsCurrent()" [attr.x]="dailyCX(d)" [attr.y]="dailyH - 12" text-anchor="middle">{{ d }}</text>
+        }
+        @for (t of dailyTicks(); track t.value) {
+          <line [attr.x1]="dailyPad.l" [attr.x2]="dailyW - dailyPad.r" [attr.y1]="t.y" [attr.y2]="t.y" class="grid" [class.zero]="t.value === 0" />
+          <text [attr.x]="dailyPad.l - 8" [attr.y]="t.y + 4" class="ylabel">{{ t.value | number: '1.0-0' : 'pl' }}</text>
+        }
+        @for (s of dailySegments(); track s.key) {
+          <rect class="seg clickable" [attr.x]="s.x" [attr.y]="s.y" [attr.width]="dailyBarW()" [attr.height]="s.h" [attr.fill]="s.color" (click)="dailyDrill(s.category)">
+            <title>{{ s.tip }}</title>
+          </rect>
+        }
+        @if (dailyPrevPoints()) {
+          <polyline class="prev-line" [attr.points]="dailyPrevPoints()" />
+          @if (dailyPrevLast(); as p) {
+            <text class="prev-label" [attr.x]="p.x" [attr.y]="p.y - 5" text-anchor="end">poprzedni miesiąc</text>
+          }
+        }
+        @if (dailyElapsed() > 0) {
+          <text class="total-label" [attr.x]="dailyCX(dailyElapsed())" [attr.y]="dailyLabelY()" text-anchor="middle">{{ dailyTotal() | number: '1.0-0' : 'pl' }}</text>
+        }
+      </svg>
+      <div class="mat-cats">
+        <span class="muted">
+          <button type="button" class="link" (click)="dailySetAll(true)">wszystkie</button> ·
+          <button type="button" class="link" (click)="dailySetAll(false)">żadna</button>
+        </span>
+        @for (c of dailyCategories(); track c) {
+          <label class="mat-cat" [class.mat-cat--off]="!dailyIncluded(c)">
+            <input type="checkbox" [checked]="dailyIncluded(c)" (change)="toggleDailyCategory(c)" />
+            <span class="swatch" [style.background]="dailyColors().get(c)"></span> {{ c }}
+          </label>
+        }
+      </div>
+      <p class="muted">Słupek dnia = suma netto od 1. dnia miesiąca do tego dnia włącznie, w podziale na kategorie (największe na dole). Wydatki rysowane w górę; kategorie z nadwyżką zwrotów nad wydatkami – poniżej osi zera. Linia przerywana = poprzedni miesiąc narastająco dla tych samych kategorii. Prognoza = suma do dziś / liczba dni × dni miesiąca. Kliknięcie segmentu otwiera transakcje kategorii z tego miesiąca w tabeli „Wydatki wg kategorii”. Wybór kategorii jest zapamiętywany niezależnie od pozostałych sekcji.</p>
+    }
+  </section>
+
   <!-- ============ MAT 12 miesięcy ============ -->
   <section class="card">
     <div class="card__head">
