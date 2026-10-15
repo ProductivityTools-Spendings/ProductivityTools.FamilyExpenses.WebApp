@@ -1,7 +1,5 @@
 import {
   aggregateMonth,
-  compareRows,
-  compareTotals,
   cumulativeSum,
   dayLabel,
   daysInMonth,
@@ -90,35 +88,6 @@ describe('daily-cumulative', () => {
   it('forecast scales linearly', () => {
     expect(forecast(-300, 10, 30)).toBe(-900);
     expect(forecast(-300, 0, 30)).toBe(0);
-  });
-
-  it('compareRows / compareTotals compare categories with the previous month at the same day', () => {
-    const cur = aggregateMonth(rows, '2026-03');
-    const prev = aggregateMonth(
-      [
-        { operationDate: '2026-02-01', category: 'Jedzenie', amountPln: -100 },
-        { operationDate: '2026-02-20', category: 'Jedzenie', amountPln: -40 },
-        { operationDate: '2026-02-02', category: 'Czynsz', amountPln: -500 },
-      ],
-      '2026-02',
-    );
-    const cats = mergeCategories(cur, prev);
-    const r = compareRows(cur, prev, cats, 3);
-    expect(r.map((x) => x.category)).toEqual(cats);
-    const food = r.find((x) => x.category === 'Jedzenie')!;
-    expect(food).toEqual({ category: 'Jedzenie', cur: -180, prevSameDay: -100, prevTotal: -140, diff: -80 });
-    // category present only in the previous month
-    expect(r.find((x) => x.category === 'Czynsz')).toEqual({ category: 'Czynsz', cur: 0, prevSameDay: -500, prevTotal: -500, diff: 500 });
-    // category present only in the current month
-    expect(r.find((x) => x.category === 'Paliwo')).toEqual({ category: 'Paliwo', cur: -200, prevSameDay: 0, prevTotal: 0, diff: -200 });
-    // elapsed beyond the previous month's length is clipped (31 > 28)
-    expect(compareRows(cur, prev, ['Jedzenie'], 31)[0]).toMatchObject({ cur: -180, prevSameDay: -140 });
-    // nothing elapsed yet
-    expect(compareRows(cur, prev, ['Jedzenie'], 0)[0]).toEqual({ category: 'Jedzenie', cur: 0, prevSameDay: 0, prevTotal: -140, diff: 0 });
-
-    const totals = compareTotals(r, new Set(['Paliwo']));
-    expect(totals).toEqual({ cur: -180, prevSameDay: -600, prevTotal: -640 });
-    expect(compareTotals(r, new Set()).cur).toBe(totalSeries(cur, new Set())[2]);
   });
 
   it('niceStep and ticks', () => {

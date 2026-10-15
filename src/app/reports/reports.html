@@ -242,7 +242,7 @@
           <text [attr.x]="dailyPad.l - 8" [attr.y]="t.y + 4" class="ylabel">{{ t.value | number: '1.0-0' : 'pl' }}</text>
         }
         @for (s of dailySegments(); track s.key) {
-          <rect class="seg clickable" [attr.x]="s.x" [attr.y]="s.y" [attr.width]="dailyBarW()" [attr.height]="s.h" [attr.fill]="s.color" (click)="dailyDrill(s.category)">
+          <rect class="seg clickable" [class.selected]="dailyDrill()?.category === s.category && dailyDrill()?.day === s.day" [attr.x]="s.x" [attr.y]="s.y" [attr.width]="dailyBarW()" [attr.height]="s.h" [attr.fill]="s.color" (click)="openDailyDrill(s.category, s.day)">
             <title>{{ s.tip }}</title>
           </rect>
         }
@@ -256,47 +256,61 @@
           <text class="total-label" [attr.x]="dailyCX(dailyElapsed())" [attr.y]="dailyLabelY()" text-anchor="middle">{{ dailyTotal() | number: '1.0-0' : 'pl' }}</text>
         }
       </svg>
-      <h4 class="daily-tbl__title">Wydatki wg kategorii · {{ dailyMonthLabel() }}</h4>
-      <div class="scroll">
-        <table class="tbl tbl--compact tbl--daily">
-          <thead>
-            <tr>
-              <th class="check"><input type="checkbox" [checked]="dailyAllIncluded()" (change)="toggleDailyAll()" title="Zaznacz/odznacz wszystkie" /></th>
-              <th></th>
-              <th>Kategoria</th>
-              <th class="num">Ten miesiąc</th>
-              <th class="num">Poprz. mies. do tego dnia</th>
-              <th class="num">Poprz. mies. razem</th>
-              <th class="num">Różnica</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (r of dailyTableRows(); track r.category) {
-              <tr [class.excluded]="!dailyIncluded(r.category)">
-                <td class="check"><input type="checkbox" [checked]="dailyIncluded(r.category)" (change)="toggleDailyCategory(r.category)" [title]="dailyIncluded(r.category) ? 'Wyłącz z wykresu i sumy' : 'Włącz do wykresu i sumy'" /></td>
-                <td><span class="swatch" [style.background]="dailyColors().get(r.category)"></span></td>
-                <td class="clickable" (click)="dailyDrill(r.category)" title="Pokaż transakcje">{{ r.category }}</td>
-                <td class="num clickable" [class.refund]="r.cur > 0" (click)="dailyDrill(r.category)" title="Pokaż transakcje">@if (r.cur) { {{ r.cur | number: '1.0-0' : 'pl' }} }</td>
-                <td class="num" [class.refund]="r.prevSameDay > 0">@if (r.prevSameDay) { {{ r.prevSameDay | number: '1.0-0' : 'pl' }} }</td>
-                <td class="num" [class.refund]="r.prevTotal > 0">@if (r.prevTotal) { {{ r.prevTotal | number: '1.0-0' : 'pl' }} }</td>
-                <td class="num" [class.diff-less]="r.diff > 0" [class.diff-more]="r.diff < 0">@if (r.diff) { {{ r.diff | number: '1.0-0' : 'pl' }} }</td>
-              </tr>
-            }
-          </tbody>
-          <tfoot>
-            <tr>
-              <th class="check"></th>
-              <th></th>
-              <th>Razem</th>
-              <th class="num">{{ dailyTableTotals().cur | number: '1.0-0' : 'pl' }}</th>
-              <th class="num">{{ dailyTableTotals().prevSameDay | number: '1.0-0' : 'pl' }}</th>
-              <th class="num">{{ dailyTableTotals().prevTotal | number: '1.0-0' : 'pl' }}</th>
-              <th class="num" [class.diff-less]="dailyTableTotals().cur - dailyTableTotals().prevSameDay > 0" [class.diff-more]="dailyTableTotals().cur - dailyTableTotals().prevSameDay < 0">{{ dailyTableTotals().cur - dailyTableTotals().prevSameDay | number: '1.0-0' : 'pl' }}</th>
-            </tr>
-          </tfoot>
-        </table>
+      @if (dailyDrill(); as dd) {
+        <div class="drill">
+          <div class="drill__head">
+            <strong>{{ dailyDrillTitle() }}</strong>
+            <span class="muted">{{ dailyDrillRows().length }} transakcji · razem {{ dailyDrillTotal() | currency: 'PLN' : 'symbol-narrow' : '1.2-2' : 'pl' }}</span>
+            <button type="button" class="link" (click)="closeDailyDrill()">zamknij ✕</button>
+          </div>
+          @if (dailyDrillLoading()) {
+            <p class="muted">Ładowanie…</p>
+          } @else if (dailyDrillRows().length === 0) {
+            <p class="muted">Brak transakcji.</p>
+          } @else {
+            <div class="scroll">
+              <table class="tbl tbl--compact">
+                <thead>
+                  <tr><th>Id</th><th>Data</th><th>Godz.</th><th>Typ</th><th>Nazwa</th><th>Konto</th><th>Kategoria</th><th>Notatka</th><th class="num">Kwota PLN</th></tr>
+                </thead>
+                <tbody>
+                  @for (x of dailyDrillRows(); track x.id) {
+                    <tr>
+                      <td>#{{ x.id }}</td>
+                      <td>{{ x.operationDate }}</td>
+                      <td>{{ x.operationTime }}</td>
+                      <td>{{ x.operationType }}</td>
+                      <td class="ellipsis" [title]="x.name ?? ''">
+                        {{ x.name }}
+                        @if (x.currency && x.currency !== 'PLN') {
+                          <span class="fx-note">({{ x.amount | currency: x.currency : 'symbol-narrow' : '1.2-2' : 'pl' }})</span>
+                        }
+                      </td>
+                      <td>{{ x.account }}</td>
+                      <td>{{ x.category }}</td>
+                      <td class="ellipsis" [title]="x.note ?? ''">{{ x.note }}</td>
+                      <td class="num" [class.refund]="x.amountPln > 0">{{ x.amountPln | number: '1.2-2' : 'pl' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+      }
+      <div class="mat-cats">
+        <span class="muted">
+          <button type="button" class="link" (click)="dailySetAll(true)">wszystkie</button> ·
+          <button type="button" class="link" (click)="dailySetAll(false)">żadna</button>
+        </span>
+        @for (c of dailyCategories(); track c) {
+          <label class="mat-cat" [class.mat-cat--off]="!dailyIncluded(c)">
+            <input type="checkbox" [checked]="dailyIncluded(c)" (change)="toggleDailyCategory(c)" />
+            <span class="swatch" [style.background]="dailyColors().get(c)"></span> {{ c }}
+          </label>
+        }
       </div>
-      <p class="muted">Słupek dnia = suma netto od 1. dnia miesiąca do tego dnia włącznie, w podziale na kategorie (największe na dole). Wydatki rysowane w górę; kategorie z nadwyżką zwrotów nad wydatkami – poniżej osi zera. Linia przerywana = poprzedni miesiąc narastająco dla tych samych kategorii. Prognoza = suma do dziś / liczba dni × dni miesiąca. Tabela: „Ten miesiąc” = saldo kategorii do {{ dailyIsCurrent() ? 'dziś' : 'końca miesiąca' }}, „Poprz. mies. do tego dnia” = saldo poprzedniego miesiąca do tego samego dnia, „Różnica” = ten miesiąc − poprzedni (zielona = mniej wydane, czerwona = więcej). Odznaczone kategorie (szare) znikają z wykresu i z wiersza „Razem”; wybór jest zapamiętywany niezależnie od pozostałych sekcji. Kliknięcie segmentu lub kategorii otwiera transakcje z tego miesiąca w tabeli „Wydatki wg kategorii” powyżej.</p>
+      <p class="muted">Słupek dnia = suma netto od 1. dnia miesiąca do tego dnia włącznie, w podziale na kategorie (największe na dole). Wydatki rysowane w górę; kategorie z nadwyżką zwrotów nad wydatkami – poniżej osi zera. Linia przerywana = poprzedni miesiąc narastająco dla tych samych kategorii. Prognoza = suma do dziś / liczba dni × dni miesiąca. Kliknięcie segmentu otwiera pod wykresem transakcje tej kategorii od 1. dnia miesiąca do klikniętego dnia włącznie. Wybór kategorii jest zapamiętywany niezależnie od pozostałych sekcji.</p>
     }
   </section>
 

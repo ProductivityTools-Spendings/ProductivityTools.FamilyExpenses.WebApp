@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { CategoryDetail, CategoryMonth, Hygiene, RecurringPayment, ReportService } from '../services/report.service';
-import { aggregateMonth, compareRows, compareTotals, dayLabel, elapsedDays, forecast, mergeCategories, niceStep, NO_CATEGORY, ticks, totalSeries } from './daily-cumulative';
+import { aggregateMonth, dayLabel, elapsedDays, forecast, mergeCategories, niceStep, NO_CATEGORY, ticks, totalSeries } from './daily-cumulative';
 
 /** One stacked-bar segment of the cumulative daily chart. */
 interface DailySegment {
@@ -427,19 +427,6 @@ export class Reports implements OnInit {
     });
   }
 
-  protected readonly dailyAllIncluded = computed(() => this.dailyCategories().every((c) => !this.dailyExcluded().has(c)));
-
-  /** Header checkbox of the per-month category table: all → none, otherwise → all. */
-  protected toggleDailyAll(): void {
-    this.dailySetAll(!this.dailyAllIncluded());
-  }
-
-  /** Per-category comparison with the previous month at the last drawn day (table under the chart). */
-  protected readonly dailyTableRows = computed(() => compareRows(this.dailyCur(), this.dailyPrev(), this.dailyCategories(), this.dailyElapsed()));
-
-  /** Footer sums over included categories; `cur`/`prevSameDay` match dailyTotal()/dailyPrevSameDay(). */
-  protected readonly dailyTableTotals = computed(() => compareTotals(this.dailyTableRows(), this.dailyExcluded()));
-
   protected setDailyMonth(month: string): void {
     this.dailyMonth.set(month);
     this.loadDaily();
@@ -449,14 +436,54 @@ export class Reports implements OnInit {
     this.setDailyMonth(shiftMonth(this.dailyMonth(), delta));
   }
 
-  /** Opens the transactions panel for a segment; rows without a category open the whole month. */
-  protected dailyDrill(category: string): void {
-    this.openDrill(category === NO_CATEGORY ? null : category, this.dailyMonth());
+  // --- daily cumulative: drill-down ("what is inside this cumulative bar") -----
+  /** Clicked segment: category and the day its bar ends on; null = panel closed. */
+  protected readonly dailyDrill = signal<{ category: string; month: string; day: number } | null>(null);
+  protected readonly dailyDrillRows = signal<CategoryDetail[]>([]);
+  protected readonly dailyDrillLoading = signal(false);
+  protected readonly dailyDrillTotal = computed(() => this.dailyDrillRows().reduce((s, r) => s + r.amountPln, 0));
+
+  /**
+   * Opens the panel with the category's transactions of the chart's month from day 1 to `day` inclusive.
+   * The endpoint is month-granular, so the day cut-off is applied client-side.
+   */
+  protected openDailyDrill(category: string, day: number): void {
+    const month = this.dailyMonth();
+    const until = dayLabel(month, day);
+    const noCategory = category === NO_CATEGORY;
+    this.dailyDrill.set({ category, month, day });
+    this.dailyDrillLoading.set(true);
+    this.service.categoryMonthlyDetails(month, month, noCategory ? undefined : category).subscribe({
+      next: (rows) => {
+        const d = this.dailyDrill();
+        if (!d || d.month !== month || d.category !== category || d.day !== day) return; // stale response
+        this.dailyDrillRows.set(rows.filter((r) => r.operationDate <= until && (!noCategory || !r.category)));
+        this.dailyDrillLoading.set(false);
+      },
+      error: (err) => {
+        this.error.set(err?.message ?? 'Nie udało się pobrać szczegółów.');
+        this.dailyDrillLoading.set(false);
+      },
+    });
+  }
+
+  protected closeDailyDrill(): void {
+    this.dailyDrill.set(null);
+    this.dailyDrillRows.set([]);
+  }
+
+  /** e.g. "Jedzenie · 1–15.03.2026". */
+  protected dailyDrillTitle(): string {
+    const d = this.dailyDrill();
+    if (!d) return '';
+    const [y, m] = d.month.split('-');
+    return `${d.category} · 1–${d.day}.${m}.${y}`;
   }
 
   protected loadDaily(): void {
     const month = this.dailyMonth();
     const prev = shiftMonth(month, -1);
+    this.closeDailyDrill();
     this.dailyLoading.set(true);
     forkJoin({
       cur: this.service.categoryMonthlyDetails(month, month),
