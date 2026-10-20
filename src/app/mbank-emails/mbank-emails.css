@@ -26,6 +26,7 @@
 }
 
 .emails__actions button,
+.emails__actions .btn-link,
 .emails__table button {
   padding: 0.4rem 0.9rem;
   border: 1px solid #1976d2;
@@ -285,4 +286,11 @@ button.link {
   margin-left: 0.5rem;
   color: #1976d2;
   text-decoration: underline;
+}
+
+.emails__actions .btn-link {
+  background: #fff;
+  color: #1976d2;
+  text-decoration: none;
+  font-size: 0.9rem;
 }

@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } 
 import { DatePipe } from '@angular/common';
 import { MbankRawEmail } from '../models/mbank-raw-email';
 import { MbankRawEmailService, openPreviewWindow, showHtmlInWindow } from '../services/mbank-raw-email.service';
+import { environment } from '../../environments/environment';
 
 /** One cell of the monthly calendar; `day` is null for the leading blanks before the 1st. */
 interface CalendarCell {
@@ -32,6 +33,8 @@ function dayKey(d: Date): string {
 })
 export class MbankEmails implements OnInit {
   private readonly service = inject(MbankRawEmailService);
+  /** Link to the Apps Script web app that imports new e-mails from Gmail (owner-only deployment). */
+  protected readonly gmailImportUrl = environment.mbankGmailImportUrl;
 
   protected readonly emails = signal<MbankRawEmail[]>([]);
   protected readonly loading = signal(false);
