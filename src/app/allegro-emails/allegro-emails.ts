@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@ang
 import { DatePipe } from '@angular/common';
 import { AllegroRawEmail, AllegroService } from '../services/allegro.service';
 import { openPreviewWindow, showHtmlInWindow } from '../services/mbank-raw-email.service';
+import { environment } from '../../environments/environment';
 
 @Component({
   selector: 'app-allegro-emails',
@@ -12,6 +13,8 @@ import { openPreviewWindow, showHtmlInWindow } from '../services/mbank-raw-email
 })
 export class AllegroEmails implements OnInit {
   private readonly service = inject(AllegroService);
+  /** Link to the Apps Script web app that imports new Allegro e-mails from Gmail (owner-only deployment). */
+  protected readonly gmailImportUrl = environment.allegroGmailImportUrl;
 
   protected readonly emails = signal<AllegroRawEmail[]>([]);
   protected readonly loading = signal(false);

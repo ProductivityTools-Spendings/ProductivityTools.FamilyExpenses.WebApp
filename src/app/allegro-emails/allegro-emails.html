@@ -8,6 +8,10 @@
         <span class="badge badge--new">NEW {{ countByStatus('NEW') }}</span>
         <span class="badge badge--error">ERROR {{ countByStatus('ERROR') }}</span>
       </span>
+      @if (gmailImportUrl) {
+        <a class="btn-link" [href]="gmailImportUrl" target="_blank" rel="noopener"
+           title="Uruchamia skrypt Apps Script (exportAllegroEmailsToSpendingsApi) – otwiera się w nowej karcie, potem kliknij Odśwież">Pobierz z Gmaila ↗</a>
+      }
       <button type="button" (click)="load()" [disabled]="loading()">Odśwież</button>
     </div>
   </header>
