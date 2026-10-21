@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { CurrencyPipe, DecimalPipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Observable } from 'rxjs';
 import { Spending } from '../models/spending';
 import { FillResult, SpendingService } from '../services/spending.service';
@@ -11,7 +12,7 @@ type Action = 'process' | 'fillAccounts' | 'fillCategories' | 'markDuplicates' |
 
 @Component({
   selector: 'app-spendings',
-  imports: [CurrencyPipe, DecimalPipe],
+  imports: [CurrencyPipe, DecimalPipe, FormsModule],
   templateUrl: './spendings.html',
   styleUrl: './spendings.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -61,6 +62,72 @@ export class Spendings implements OnInit {
   }
 
   protected readonly spendings = signal<Spending[]>([]);
+
+  // --- inline edit of category / note ---------------------------------------
+  /** Row being edited with its draft values; null = nothing in edit mode. */
+  protected readonly editing = signal<{ id: number; category: string; note: string } | null>(null);
+  protected readonly saving = signal(false);
+  protected readonly categories = signal<string[]>([]);
+
+  protected startEdit(s: Spending): void {
+    if (this.saving() || this.editing()?.id === s.id) return;
+    this.editing.set({ id: s.id, category: s.category ?? '', note: s.note ?? '' });
+  }
+
+  /** Dictionary categories plus the row's current value when it is not in the dictionary (legacy data). */
+  protected readonly categoryOptions = computed(() => {
+    const current = this.editing()?.category;
+    const list = this.categories();
+    return current && !list.includes(current) ? [current, ...list] : list;
+  });
+
+  protected cancelEdit(): void {
+    this.editing.set(null);
+  }
+
+  protected isEditing(s: Spending): boolean {
+    return this.editing()?.id === s.id;
+  }
+
+  protected saveEdit(): void {
+    const draft = this.editing();
+    if (!draft) return;
+    const category = draft.category.trim() || null;
+    const note = draft.note.trim() || null;
+    this.saving.set(true);
+    this.spendingService.updateAnnotations(draft.id, category, note).subscribe({
+      next: (res) => {
+        // apply to the row and to its duplicate twins, exactly as the API did
+        const twins = new Set<number>([draft.id]);
+        for (const s of this.spendings()) {
+          if (s.id === draft.id && s.duplicateOf !== null) twins.add(s.duplicateOf);
+          if (s.duplicateOf === draft.id) twins.add(s.id);
+        }
+        this.spendings.update((rows) =>
+          rows.map((s) => (twins.has(s.id) ? { ...s, category: res.category, note: res.note } : s)),
+        );
+        if (res.category && !this.categories().includes(res.category)) {
+          this.categories.update((c) => [...c, res.category!].sort((a, b) => a.localeCompare(b, 'pl')));
+        }
+        this.editing.set(null);
+        this.saving.set(false);
+      },
+      error: (err) => {
+        this.error.set(err?.message ?? 'Nie udało się zapisać kategorii/notatki.');
+        this.saving.set(false);
+      },
+    });
+  }
+
+  protected onEditKey(event: KeyboardEvent): void {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      this.saveEdit();
+    } else if (event.key === 'Escape') {
+      this.cancelEdit();
+    }
+  }
+
   protected readonly hideDuplicates = signal(true);
   protected readonly visibleSpendings = computed(() =>
     this.hideDuplicates() ? this.spendings().filter((s) => s.duplicateOf === null) : this.spendings(),
@@ -84,6 +151,7 @@ export class Spendings implements OnInit {
 
   ngOnInit(): void {
     this.load();
+    this.spendingService.getCategories().subscribe({ next: (c) => this.categories.set(c), error: () => undefined });
   }
 
   protected get busy(): boolean {

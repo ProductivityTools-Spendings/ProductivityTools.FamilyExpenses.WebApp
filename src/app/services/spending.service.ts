@@ -4,6 +4,14 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { Spending } from '../models/spending';
 
+/** Mirrors SpendingAnnotationController.AnnotationResponse from the WebApi. */
+export interface AnnotationResult {
+  spendingId: number;
+  category: string | null;
+  note: string | null;
+  rowsUpdated: number;
+}
+
 /** Mirrors SpendingController.FillResult from the WebApi. */
 export interface FillResult {
   updated: number;
@@ -17,6 +25,16 @@ export class SpendingService {
 
   getAll(): Observable<Spending[]> {
     return this.http.get<Spending[]>(this.baseUrl);
+  }
+
+  /** Category names known to the system (dictionary_category), for inline-edit suggestions. */
+  getCategories(): Observable<string[]> {
+    return this.http.get<string[]>(`${this.baseUrl}/categories`);
+  }
+
+  /** Replaces category and note of one spending (blank = cleared); the API mirrors them onto duplicate twins. */
+  updateAnnotations(id: number, category: string | null, note: string | null): Observable<AnnotationResult> {
+    return this.http.put<AnnotationResult>(`${this.baseUrl}/${id}/annotations`, { category, note });
   }
 
   /** Fills missing accounts in spending_details from dictionary_account. */
