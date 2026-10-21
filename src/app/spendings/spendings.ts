@@ -4,6 +4,8 @@ import { Observable } from 'rxjs';
 import { Spending } from '../models/spending';
 import { FillResult, SpendingService } from '../services/spending.service';
 import { EmailService, ProcessingResult } from '../services/email.service';
+import { AllegroPurchase, AllegroService } from '../services/allegro.service';
+import { openPreviewWindow, showHtmlInWindow } from '../services/mbank-raw-email.service';
 
 type Action = 'process' | 'fillAccounts' | 'fillCategories' | 'markDuplicates' | 'fillPln';
 
@@ -17,6 +19,46 @@ type Action = 'process' | 'fillAccounts' | 'fillCategories' | 'markDuplicates' |
 export class Spendings implements OnInit {
   private readonly spendingService = inject(SpendingService);
   private readonly emailService = inject(EmailService);
+  private readonly allegroService = inject(AllegroService);
+
+  // --- Allegro order popup ----------------------------------------------------
+  /** Spending whose Allegro order is shown in the popup; null = closed. */
+  protected readonly allegroPopup = signal<Spending | null>(null);
+  protected readonly allegroItems = signal<AllegroPurchase[]>([]);
+  protected readonly allegroLoading = signal(false);
+  protected readonly allegroItemsTotal = computed(() => this.allegroItems().reduce((sum, p) => sum + p.itemCost, 0));
+
+  protected openAllegro(s: Spending): void {
+    if (s.allegroRawEmailId === null) return;
+    this.allegroPopup.set(s);
+    this.allegroItems.set([]);
+    this.allegroLoading.set(true);
+    this.allegroService.getPurchasesForEmail(s.allegroRawEmailId).subscribe({
+      next: (items) => {
+        this.allegroItems.set(items);
+        this.allegroLoading.set(false);
+      },
+      error: (err) => {
+        this.error.set(err?.message ?? 'Nie udało się pobrać zamówienia Allegro.');
+        this.allegroLoading.set(false);
+      },
+    });
+  }
+
+  protected closeAllegro(): void {
+    this.allegroPopup.set(null);
+  }
+
+  /** Opens the original Allegro e-mail in a new tab. */
+  protected showAllegroEmail(): void {
+    const s = this.allegroPopup();
+    if (!s || s.allegroRawEmailId === null) return;
+    const preview = openPreviewWindow();
+    this.allegroService.downloadEmail(s.allegroRawEmailId).subscribe({
+      next: (file) => showHtmlInWindow(preview, file.blob),
+      error: () => preview?.close(),
+    });
+  }
 
   protected readonly spendings = signal<Spending[]>([]);
   protected readonly hideDuplicates = signal(true);

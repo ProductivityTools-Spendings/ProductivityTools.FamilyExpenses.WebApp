@@ -61,4 +61,9 @@ export class AllegroService {
   getPurchases(): Observable<AllegroPurchase[]> {
     return this.http.get<AllegroPurchase[]>(`${this.baseUrl}/purchases`);
   }
+
+  /** Items of one order (= one Allegro e-mail). */
+  getPurchasesForEmail(emailId: number): Observable<AllegroPurchase[]> {
+    return this.http.get<AllegroPurchase[]>(`${this.baseUrl}/emails/${emailId}/purchases`);
+  }
 }

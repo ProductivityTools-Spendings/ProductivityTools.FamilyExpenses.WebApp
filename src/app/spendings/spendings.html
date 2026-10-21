@@ -54,8 +54,8 @@
             <th>Konto docelowe</th>
             <th>Konto</th>
             <th>Kategoria</th>
-            <th>Notatka</th>
             <th>Allegro</th>
+            <th>Notatka</th>
           </tr>
         </thead>
         <tbody>
@@ -88,12 +88,56 @@
               <td class="mono">{{ s.dstAccount }}</td>
               <td>{{ s.account }}</td>
               <td>{{ s.category }}</td>
+              <td>
+                @if (s.allegroRawEmailId !== null) {
+                  <button type="button" class="allegro-btn" (click)="openAllegro(s)" title="Pokaż, co kupiono w tym zamówieniu">Allegro ▸</button>
+                }
+              </td>
               <td class="note" [title]="s.note">{{ s.note }}</td>
-              <td>{{ s.allegroRawEmailId ? '✓' : '' }}</td>
             </tr>
           }
         </tbody>
       </table>
+    </div>
+  }
+
+  @if (allegroPopup(); as s) {
+    <div class="modal-backdrop" (click)="closeAllegro()">
+      <div class="modal" (click)="$event.stopPropagation()" role="dialog" aria-label="Zamówienie Allegro">
+        <div class="modal__head">
+          <div>
+            <strong>Zamówienie Allegro</strong>
+            <div class="muted">transakcja #{{ s.id }} · {{ s.operationDate }} · {{ s.name }} · {{ s.amount | currency: 'PLN' : 'symbol-narrow' : '1.2-2' : 'pl' }}</div>
+          </div>
+          <button type="button" class="link" (click)="closeAllegro()">zamknij ✕</button>
+        </div>
+        @if (allegroLoading()) {
+          <p class="muted">Ładowanie…</p>
+        } @else if (allegroItems().length === 0) {
+          <p class="muted">Brak pozycji – e-mail #{{ s.allegroRawEmailId }} nie został jeszcze przetworzony.</p>
+        } @else {
+          <p class="muted">{{ allegroItems()[0].emailSubject }} · data zakupu {{ allegroItems()[0].purchaseDate }}</p>
+          <table class="modal__table">
+            <thead><tr><th>Przedmiot</th><th class="num">Ilość</th><th class="num">Cena</th></tr></thead>
+            <tbody>
+              @for (p of allegroItems(); track p.id) {
+                <tr>
+                  <td>{{ p.itemName }}</td>
+                  <td class="num muted">{{ p.itemCount }}</td>
+                  <td class="num">{{ p.itemCost | currency: 'PLN' : 'symbol-narrow' : '1.2-2' : 'pl' }}</td>
+                </tr>
+              }
+            </tbody>
+            <tfoot>
+              <tr><th>Pozycje razem</th><th></th><th class="num">{{ allegroItemsTotal() | currency: 'PLN' : 'symbol-narrow' : '1.2-2' : 'pl' }}</th></tr>
+              <tr><th>Zapłacono (z dostawą)</th><th></th><th class="num">{{ allegroItems()[0].fullPrice | currency: 'PLN' : 'symbol-narrow' : '1.2-2' : 'pl' }}</th></tr>
+            </tfoot>
+          </table>
+        }
+        <div class="modal__foot">
+          <button type="button" class="secondary" (click)="showAllegroEmail()">Wyświetl e-mail</button>
+        </div>
+      </div>
     </div>
   }
 </section>
