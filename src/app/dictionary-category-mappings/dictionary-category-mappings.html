@@ -1,0 +1,93 @@
+<section class="dict">
+  <header class="dict__header">
+    <h2>Słownik kategorii</h2>
+    <div class="dict__actions">
+      <span class="dict__count">{{ rows().length }} wpisów</span>
+      <button type="button" (click)="load()" [disabled]="loading()">Odśwież</button>
+    </div>
+  </header>
+
+  <p class="dict__hint">Nazwa transakcji (dokładnie taka jak w kolumnie „Nazwa”) → kategoria. „Uzupełnij kategorie” na stronie transakcji przypisuje ją wszystkim transakcjom o tej nazwie, które nie mają jeszcze kategorii.</p>
+
+  @if (status(); as msg) {
+    <p class="dict__status">{{ msg }}</p>
+  }
+  @if (error(); as msg) {
+    <p class="dict__error">{{ msg }}</p>
+  }
+
+  <form class="dict__form" (ngSubmit)="create()">
+    <input id="new-key" name="key" [(ngModel)]="newKey" placeholder="Nazwa transakcji (np. ZABKA Z4649 K.1)" autocomplete="off" />
+    <select id="new-category" name="category" [(ngModel)]="newCategory">
+      <option value="">— wybierz kategorię —</option>
+      @for (c of categories(); track c) { <option [value]="c">{{ c }}</option> }
+    </select>
+    <button type="submit" [disabled]="creating()">{{ creating() ? 'Dodawanie…' : 'Dodaj' }}</button>
+  </form>
+
+  <div class="dict__layout">
+    <div class="dict__table-wrapper">
+      <input class="dict__filter" name="filter" [(ngModel)]="filter" placeholder="Filtruj po nazwie lub kategorii…" autocomplete="off" />
+      @if (loading()) {
+        <p class="dict__info">Ładowanie…</p>
+      } @else if (rows().length === 0) {
+        <p class="dict__info">Słownik jest pusty.</p>
+      } @else {
+        <table class="dict__table">
+          <thead>
+            <tr>
+              <th>Nazwa transakcji</th>
+              <th>Kategoria</th>
+              <th class="num">Transakcji</th>
+              <th class="actions"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (r of visibleRows(); track r.id) {
+              <tr [class.editing]="r.editing">
+                @if (r.editing) {
+                  <td><input [(ngModel)]="r.draftKey" [name]="'key-' + r.id" (keyup.enter)="save(r)" (keyup.escape)="cancelEdit(r)" /></td>
+                  <td>
+                    <select [(ngModel)]="r.draftCategory" [name]="'category-' + r.id" (keyup.escape)="cancelEdit(r)">
+                      @for (c of categories(); track c) { <option [value]="c">{{ c }}</option> }
+                    </select>
+                  </td>
+                  <td class="num">{{ r.spendingsCount }}</td>
+                  <td class="actions">
+                    <button type="button" (click)="save(r)" [disabled]="r.saving">{{ r.saving ? '…' : 'Zapisz' }}</button>
+                    <button type="button" class="secondary" (click)="cancelEdit(r)" [disabled]="r.saving">Anuluj</button>
+                  </td>
+                } @else {
+                  <td>{{ r.key }}</td>
+                  <td>{{ r.category }}</td>
+                  <td class="num">{{ r.spendingsCount }}</td>
+                  <td class="actions">
+                    <button type="button" class="secondary" (click)="startEdit(r)" [disabled]="r.saving">Edytuj</button>
+                    <button type="button" class="danger" (click)="remove(r)" [disabled]="r.saving">Usuń</button>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+
+    <aside class="dict__unmapped">
+      <h3>Nazwy bez kategorii <span class="dict__count">({{ unmapped().length }})</span></h3>
+      <p class="dict__hint">Nazwy transakcji bez kategorii i bez wpisu w słowniku, najczęstsze na górze. Kliknij, aby wypełnić formularz.</p>
+      @if (unmapped().length === 0 && !loading()) {
+        <p class="dict__info">Wszystkie nazwy mają kategorię lub wpis w słowniku.</p>
+      } @else {
+        <ul>
+          @for (u of unmapped(); track u.name) {
+            <li>
+              <button type="button" class="link" (click)="prefill(u)">{{ u.name }}</button>
+              <span class="dict__meta">{{ u.spendingsCount }} op. · ost. {{ u.lastOperationDate }}</span>
+            </li>
+          }
+        </ul>
+      }
+    </aside>
+  </div>
+</section>

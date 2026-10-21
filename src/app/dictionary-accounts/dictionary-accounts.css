@@ -201,3 +201,33 @@ input:focus {
   font-size: 0.8rem;
   white-space: nowrap;
 }
+
+/* shared with the category dictionary */
+.dict__form select {
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #bdbdbd;
+  border-radius: 4px;
+  font: inherit;
+  min-width: 14rem;
+}
+
+.dict__filter {
+  width: 100%;
+  max-width: 24rem;
+  margin-bottom: 0.6rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #bdbdbd;
+  border-radius: 4px;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.dict__table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.dict__table select {
+  padding: 0.25rem 0.4rem;
+  font: inherit;
+}

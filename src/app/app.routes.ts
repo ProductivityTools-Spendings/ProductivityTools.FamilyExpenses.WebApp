@@ -3,6 +3,7 @@ import { Spendings } from './spendings/spendings';
 import { MbankEmails } from './mbank-emails/mbank-emails';
 import { CardAuthorizations } from './card-authorizations/card-authorizations';
 import { DictionaryAccounts } from './dictionary-accounts/dictionary-accounts';
+import { DictionaryCategoryMappings } from './dictionary-category-mappings/dictionary-category-mappings';
 import { AllegroEmails } from './allegro-emails/allegro-emails';
 import { AllegroPurchases } from './allegro-purchases/allegro-purchases';
 import { Reports } from './reports/reports';
@@ -19,5 +20,6 @@ export const routes: Routes = [
   { path: 'allegro/purchases', component: AllegroPurchases, title: 'Zakupy Allegro', canActivate: [authGuard] },
   { path: 'reports', component: Reports, title: 'Raporty', canActivate: [authGuard] },
   { path: 'dictionary/accounts', component: DictionaryAccounts, title: 'Słownik rachunków', canActivate: [authGuard] },
+  { path: 'dictionary/categories', component: DictionaryCategoryMappings, title: 'Słownik kategorii', canActivate: [authGuard] },
   { path: '**', redirectTo: 'spendings' },
 ];
