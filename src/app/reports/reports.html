@@ -20,6 +20,21 @@
     <button type="button" class="range" [disabled]="!canExtendBack() || loading()" (click)="extendBack(12)" title="Rozszerz zakres o 12 miesięcy wstecz">◀ +12 mies.</button>
   </div>
 
+  @if (hasGroups()) {
+    <div class="ranges groups-filter">
+      <span class="muted">Grupy:</span>
+      <button type="button" class="range" [class.range--active]="groupSelection().size === 0" (click)="selectAllGroups()">Wszystkie</button>
+      @for (g of groups(); track g.id) {
+        <button type="button" class="range" [class.range--active]="isGroupSelected(g.name)" (click)="toggleGroup(g.name)">
+          <span class="dot" [style.background]="groupColor(g.name)"></span>{{ g.name }}
+        </button>
+      }
+      <button type="button" class="range" [class.range--active]="isGroupSelected(NO_GROUP)" (click)="toggleGroup(NO_GROUP)">
+        <span class="dot" [style.background]="groupColor(NO_GROUP)"></span>{{ groupLabel(NO_GROUP) }}
+      </button>
+    </div>
+  }
+
   <p class="reports__rules">
     Bez duplikatów, bez <code>PrzelewWlasny</code> i przewalutowań (<code>*.NAT.TR.FX</code>); kwoty w PLN (kurs NBP D‑1).
   </p>
@@ -83,7 +98,31 @@
 
   <!-- ============ 1. Kategorie × miesiące ============ -->
   <section class="card">
-    <h3>Wydatki wg kategorii</h3>
+    <div class="card__head">
+      <h3>Wydatki wg kategorii</h3>
+      @if (hasGroups()) {
+        <span class="muted pivot-mode">Grupuj:
+          <button type="button" class="range" [class.range--active]="pivotMode() === 'categories'" (click)="setPivotMode('categories')">Kategorie</button>
+          <button type="button" class="range" [class.range--active]="pivotMode() === 'groups'" (click)="setPivotMode('groups')">Grupy</button>
+        </span>
+      }
+    </div>
+    <!-- One pivot row of a category; `sub` = indented row under an expanded group. -->
+    <ng-template #catRow let-r let-sub="sub">
+      <tr [class.excluded]="!isIncluded(r.category)" [class.sub]="sub">
+        <td class="check"><input type="checkbox" [checked]="isIncluded(r.category)" (change)="toggleCategory(r.category)" [title]="isIncluded(r.category) ? 'Wyłącz z sumy' : 'Włącz do sumy'" /></td>
+        <td class="sticky">{{ r.category }}</td>
+        @for (m of months(); track m) {
+          <td class="num heat clickable" [style.--heat]="(r.byMonth[m] && r.byMonth[m] < 0 ? (-r.byMonth[m] / pivotMax()) : 0)" [class.refund]="(r.byMonth[m] || 0) > 0"
+              [class.selected]="drill()?.category === r.category && drill()?.from === m && drill()?.to === m"
+              (click)="openDrill(r.category, m)" title="Pokaż transakcje">
+            @if (r.byMonth[m]) { {{ r.byMonth[m] | number: '1.0-0' : 'pl' }} }
+          </td>
+        }
+        <td class="num total clickable" [class.refund]="r.total > 0" (click)="openDrill(r.category, null)" title="Pokaż transakcje z całego zakresu">{{ r.total | number: '1.0-0' : 'pl' }}</td>
+        <td class="num total" [class.refund]="r.avg > 0">{{ r.avg | number: '1.0-0' : 'pl' }}</td>
+      </tr>
+    </ng-template>
     <div class="scroll">
       <table class="tbl tbl--pivot">
         <thead>
@@ -96,20 +135,36 @@
           </tr>
         </thead>
         <tbody>
-          @for (r of pivot(); track r.category) {
-            <tr [class.excluded]="!isIncluded(r.category)">
-              <td class="check"><input type="checkbox" [checked]="isIncluded(r.category)" (change)="toggleCategory(r.category)" [title]="isIncluded(r.category) ? 'Wyłącz z sumy' : 'Włącz do sumy'" /></td>
-              <td class="sticky">{{ r.category }}</td>
-              @for (m of months(); track m) {
-                <td class="num heat clickable" [style.--heat]="(r.byMonth[m] && r.byMonth[m] < 0 ? (-r.byMonth[m] / pivotMax()) : 0)" [class.refund]="(r.byMonth[m] || 0) > 0"
-                    [class.selected]="drill()?.category === r.category && drill()?.from === m && drill()?.to === m"
-                    (click)="openDrill(r.category, m)" title="Pokaż transakcje">
-                  @if (r.byMonth[m]) { {{ r.byMonth[m] | number: '1.0-0' : 'pl' }} }
+          @if (pivotMode() === 'groups' && hasGroups()) {
+            @for (g of pivotGroups(); track g.group) {
+              <tr class="group-row" [class.excluded]="g.includedCount === 0">
+                <td class="check"><input type="checkbox" [checked]="g.includedCount === g.categories.length" [indeterminate]="g.includedCount > 0 && g.includedCount < g.categories.length"
+                    (change)="toggleGroupCategories(g)" title="Włącz/wyłącz wszystkie kategorie grupy" /></td>
+                <td class="sticky">
+                  <button type="button" class="link expander" (click)="toggleExpanded(g.group)" [title]="isExpanded(g.group) ? 'Zwiń' : 'Rozwiń kategorie'">{{ isExpanded(g.group) ? '▾' : '▸' }}</button>
+                  <span class="dot" [style.background]="groupColor(g.group)"></span><strong>{{ g.label }}</strong>
+                  <span class="muted">({{ g.includedCount }}/{{ g.categories.length }})</span>
                 </td>
+                @for (m of months(); track m) {
+                  <td class="num heat clickable" [style.--heat]="(g.byMonth[m] && g.byMonth[m] < 0 ? (-g.byMonth[m] / pivotMax()) : 0)" [class.refund]="(g.byMonth[m] || 0) > 0"
+                      [class.selected]="drill()?.group === g.group && drill()?.from === m && drill()?.to === m"
+                      (click)="openGroupDrill(g, m)" title="Pokaż transakcje grupy">
+                    @if (g.byMonth[m]) { {{ g.byMonth[m] | number: '1.0-0' : 'pl' }} }
+                  </td>
+                }
+                <td class="num total clickable" [class.refund]="g.total > 0" (click)="openGroupDrill(g, null)" title="Pokaż transakcje grupy z całego zakresu">{{ g.total | number: '1.0-0' : 'pl' }}</td>
+                <td class="num total" [class.refund]="g.avg > 0">{{ g.avg | number: '1.0-0' : 'pl' }}</td>
+              </tr>
+              @if (isExpanded(g.group)) {
+                @for (r of g.categories; track r.category) {
+                  <ng-container *ngTemplateOutlet="catRow; context: { $implicit: r, sub: true }" />
+                }
               }
-              <td class="num total clickable" [class.refund]="r.total > 0" (click)="openDrill(r.category, null)" title="Pokaż transakcje z całego zakresu">{{ r.total | number: '1.0-0' : 'pl' }}</td>
-              <td class="num total" [class.refund]="r.avg > 0">{{ r.avg | number: '1.0-0' : 'pl' }}</td>
-            </tr>
+            }
+          } @else {
+            @for (r of pivot(); track r.category) {
+              <ng-container *ngTemplateOutlet="catRow; context: { $implicit: r, sub: false }" />
+            }
           }
         </tbody>
         <tfoot>
@@ -123,7 +178,7 @@
         </tfoot>
       </table>
     </div>
-    <p class="muted">Saldo netto kategorii w PLN: wydatki ze znakiem minus, wpływy/zwroty z plusem (na zielono). Intensywność tła = wielkość wydatku. Odznaczone kategorie (szare) nie wchodzą do wiersza „Razem”; wybór jest zapamiętywany. Kliknij komórkę, aby zobaczyć transakcje.</p>
+    <p class="muted">Saldo netto kategorii w PLN: wydatki ze znakiem minus, wpływy/zwroty z plusem (na zielono). Intensywność tła = wielkość wydatku. Odznaczone kategorie (szare) nie wchodzą do wiersza „Razem”; wybór jest zapamiętywany. Kliknij komórkę, aby zobaczyć transakcje.@if (hasGroups()) { Filtr grup nad tabelą ogranicza kategorie we wszystkich sekcjach; w trybie „Grupy” wiersz grupy sumuje jej zaznaczone kategorie (▸ rozwija listę). }</p>
 
     @if (drill(); as d) {
       <div class="drill">
@@ -180,9 +235,17 @@
     } @else {
       <div class="pie">
         <svg class="pie__chart" [attr.viewBox]="'0 0 ' + pieC * 2 + ' ' + pieC * 2" role="img" aria-label="Udział kategorii">
+          @for (g of pieGroupSlices(); track g.group) {
+            <path [attr.d]="g.path" [attr.fill]="g.color" class="pie__slice clickable" (click)="openDrill(null, null, { key: g.group, categories: g.categories })">
+              <title>Grupa {{ g.label }}: {{ g.pct | number: '1.1-1' : 'pl' }} % · {{ g.value | number: '1.0-0' : 'pl' }} zł · {{ g.categories.length }} kat.</title>
+            </path>
+            @if (g.pct >= 5) {
+              <text class="pie__label" [attr.x]="g.labelX" [attr.y]="g.labelY">{{ g.pct | number: '1.0-0' : 'pl' }}%</text>
+            }
+          }
           @for (s of pieSlices(); track s.category) {
             <path [attr.d]="s.path" [attr.fill]="s.color" class="pie__slice clickable" (click)="openDrill(s.category, null)">
-              <title>{{ s.category }}: {{ s.pct | number: '1.1-1' : 'pl' }} % · {{ s.value | number: '1.0-0' : 'pl' }} zł</title>
+              <title>{{ s.category }}@if (hasGroups()) { ({{ s.groupLabel }})}: {{ s.pct | number: '1.1-1' : 'pl' }} % · {{ s.value | number: '1.0-0' : 'pl' }} zł</title>
             </path>
             @if (s.pct >= 4) {
               <text class="pie__label" [attr.x]="s.labelX" [attr.y]="s.labelY">{{ s.pct | number: '1.0-0' : 'pl' }}%</text>
@@ -192,20 +255,36 @@
           <text class="pie__center pie__center--sub" [attr.x]="pieC" [attr.y]="pieC + 14">zł</text>
         </svg>
         <table class="tbl tbl--compact pie__legend">
-          <thead><tr><th></th><th>Kategoria</th><th class="num">Udział</th><th class="num">Kwota</th></tr></thead>
-          <tbody>
-            @for (s of pieSlices(); track s.category) {
-              <tr class="clickable" (click)="openDrill(s.category, null)" title="Pokaż transakcje">
-                <td><span class="swatch" [style.background]="s.color"></span></td>
-                <td>{{ s.category }}</td>
-                <td class="num">{{ s.pct | number: '1.1-1' : 'pl' }} %</td>
-                <td class="num">{{ -s.value | number: '1.0-0' : 'pl' }}</td>
-              </tr>
-            }
-          </tbody>
+          @if (pivotMode() === 'groups' && hasGroups()) {
+            <thead><tr><th></th><th>Grupa</th><th class="num">Kat.</th><th class="num">Udział</th><th class="num">Kwota</th></tr></thead>
+            <tbody>
+              @for (g of pieGroupSlices(); track g.group) {
+                <tr class="clickable" (click)="openDrill(null, null, { key: g.group, categories: g.categories })" title="Pokaż transakcje grupy">
+                  <td><span class="swatch" [style.background]="g.color"></span></td>
+                  <td>{{ g.label }}</td>
+                  <td class="num">{{ g.categories.length }}</td>
+                  <td class="num">{{ g.pct | number: '1.1-1' : 'pl' }} %</td>
+                  <td class="num">{{ -g.value | number: '1.0-0' : 'pl' }}</td>
+                </tr>
+              }
+            </tbody>
+          } @else {
+            <thead><tr><th></th><th>Kategoria</th>@if (hasGroups()) { <th>Grupa</th> }<th class="num">Udział</th><th class="num">Kwota</th></tr></thead>
+            <tbody>
+              @for (s of pieSlices(); track s.category) {
+                <tr class="clickable" (click)="openDrill(s.category, null)" title="Pokaż transakcje">
+                  <td><span class="swatch" [style.background]="s.color"></span></td>
+                  <td>{{ s.category }}</td>
+                  @if (hasGroups()) { <td><span class="dot" [style.background]="groupColor(s.group)"></span>{{ s.groupLabel }}</td> }
+                  <td class="num">{{ s.pct | number: '1.1-1' : 'pl' }} %</td>
+                  <td class="num">{{ -s.value | number: '1.0-0' : 'pl' }}</td>
+                </tr>
+              }
+            </tbody>
+          }
         </table>
       </div>
-      <p class="muted">Tylko kategorie z ujemnym saldem (wydatki) zaznaczone w tabeli „Wydatki wg kategorii”; udział liczony od sumy tych kategorii w wybranym zakresie. Kliknięcie wycinka lub wiersza otwiera transakcje w tabeli powyżej.</p>
+      <p class="muted">Tylko kategorie z ujemnym saldem (wydatki) zaznaczone w tabeli „Wydatki wg kategorii”; udział liczony od sumy tych kategorii w wybranym zakresie. Kliknięcie wycinka lub wiersza otwiera transakcje w tabeli powyżej.@if (hasGroups()) { Pierścień zewnętrzny = grupy, wewnętrzny = kategorie. }</p>
     }
   </section>
 
@@ -295,6 +374,17 @@
                 </tbody>
               </table>
             </div>
+          }
+        </div>
+      }
+      @if (hasGroups()) {
+        <div class="mat-cats daily-groups">
+          <span class="muted">Grupy:</span>
+          @for (g of dailyGroups(); track g.group) {
+            <label class="mat-cat" [class.mat-cat--off]="g.includedCount === 0" [title]="g.includedCount + '/' + g.categories.length + ' kategorii'">
+              <input type="checkbox" [checked]="g.includedCount === g.categories.length" [indeterminate]="g.includedCount > 0 && g.includedCount < g.categories.length" (change)="toggleDailyGroup(g.categories)" />
+              <span class="dot" [style.background]="g.color"></span>{{ g.label }}
+            </label>
           }
         </div>
       }

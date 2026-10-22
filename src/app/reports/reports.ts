@@ -1,10 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
-import { CurrencyPipe, DecimalPipe, formatNumber } from '@angular/common';
+import { CurrencyPipe, DecimalPipe, formatNumber, NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { CategoryDetail, CategoryMonth, Hygiene, RecurringPayment, ReportService } from '../services/report.service';
 import { aggregateMonth, dayLabel, elapsedDays, forecast, mergeCategories, niceStep, NO_CATEGORY, ticks, totalSeries } from './daily-cumulative';
+import {
+  aggregateByGroup, categoryGroupMap, effectiveSelection, groupCategories, groupColor, groupLabel, groupOrder, GroupRow, isCategoryVisible, NO_GROUP,
+  orderedGroups, toggleGroupExclusion,
+} from './category-groups';
 
 /** One stacked-bar segment of the cumulative daily chart. */
 interface DailySegment {
@@ -30,9 +34,12 @@ interface PivotRow {
   avg: number;
 }
 
-/** One slice of the category-share donut. */
+/** One slice of the category-share donut (inner ring = categories, outer ring = groups). */
 interface PieSlice {
   category: string;
+  /** Group key of the category (NO_GROUP when ungrouped). */
+  group: string;
+  groupLabel: string;
   value: number;
   pct: number;
   color: string;
@@ -40,6 +47,21 @@ interface PieSlice {
   labelX: number;
   labelY: number;
 }
+
+/** Outer-ring slice: one group with the summed share of its categories. */
+interface PieGroupSlice {
+  group: string;
+  label: string;
+  value: number;
+  pct: number;
+  color: string;
+  path: string;
+  labelX: number;
+  labelY: number;
+  categories: string[];
+}
+
+type PivotMode = 'categories' | 'groups';
 
 const PIE_COLORS = [
   '#1976d2', '#e53935', '#43a047', '#fb8c00', '#8e24aa', '#00acc1', '#fdd835', '#6d4c41',
@@ -68,7 +90,7 @@ function monthsBetween(from: string, to: string): string[] {
 
 @Component({
   selector: 'app-reports',
-  imports: [CurrencyPipe, DecimalPipe, FormsModule, RouterLink],
+  imports: [CurrencyPipe, DecimalPipe, FormsModule, RouterLink, NgTemplateOutlet],
   templateUrl: './reports.html',
   styleUrl: './reports.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -144,6 +166,61 @@ export class Reports implements OnInit {
   protected readonly recurring = signal<RecurringPayment[]>([]);
   protected readonly hygiene = signal<Hygiene | null>(null);
 
+  // --- category groups: chip filter ------------------------------------------
+  protected readonly NO_GROUP = NO_GROUP;
+  /** Groups from hygiene in display order (sortOrder, name). */
+  protected readonly groups = computed(() => orderedGroups(this.hygiene()?.groups ?? []));
+  protected readonly hasGroups = computed(() => this.groups().length > 0);
+  /** category → group key, built from every loaded row set (pivot, MAT window, daily chart months). */
+  protected readonly groupMap = computed(() =>
+    categoryGroupMap([...this.categoryData(), ...this.matData(), ...this.dailyRows(), ...this.dailyPrevRows()]),
+  );
+  /** Group keys in display order (configured groups, unknown ones, "Bez grupy"). */
+  protected readonly groupKeys = computed(() => groupOrder(this.groups(), this.groupMap()));
+
+  /** Selected group chips as persisted; empty = all groups. */
+  private static readonly GROUPS_KEY = 'reports.groups.selected';
+  protected readonly selectedGroups = signal<Set<string>>(new Set(JSON.parse(localStorage.getItem(Reports.GROUPS_KEY) ?? '[]')));
+  /** Selection restricted to groups that still exist; empty = no filtering. */
+  protected readonly groupSelection = computed(() => effectiveSelection(this.selectedGroups(), this.groups()));
+
+  protected isGroupSelected(key: string): boolean {
+    return this.groupSelection().has(key);
+  }
+
+  protected toggleGroup(key: string): void {
+    this.selectedGroups.update((set) => {
+      const next = new Set(set);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      localStorage.setItem(Reports.GROUPS_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }
+
+  protected selectAllGroups(): void {
+    localStorage.setItem(Reports.GROUPS_KEY, '[]');
+    this.selectedGroups.set(new Set());
+  }
+
+  protected groupColor(key: string): string {
+    return groupColor(key, this.groups());
+  }
+
+  protected groupLabel(key: string): string {
+    return groupLabel(key);
+  }
+
+  /** Group key of a category (NO_GROUP when ungrouped / unknown). */
+  protected groupOf(category: string): string {
+    return this.groupMap().get(category) ?? NO_GROUP;
+  }
+
+  /** True when the category passes the group chip filter; applied in every section before per-category checkboxes. */
+  protected isVisible(category: string): boolean {
+    return isCategoryVisible(category, this.groupMap(), this.groupSelection());
+  }
+
   // --- report 1: pivot -----------------------------------------------------
   protected readonly months = computed(() => monthsBetween(this.fromApplied(), this.toApplied()));
   protected readonly fromApplied = signal(this.from);
@@ -153,6 +230,7 @@ export class Reports implements OnInit {
     const months = this.months();
     const map = new Map<string, PivotRow>();
     for (const r of this.categoryData()) {
+      if (!this.isVisible(r.category)) continue;
       let row = map.get(r.category);
       if (!row) {
         row = { category: r.category, byMonth: {}, total: 0, avg: 0 };
@@ -199,7 +277,7 @@ export class Reports implements OnInit {
     const excluded = this.excluded();
     const totals: Record<string, number> = {};
     for (const r of this.categoryData()) {
-      if (excluded.has(r.category)) continue;
+      if (excluded.has(r.category) || !this.isVisible(r.category)) continue;
       totals[r.month] = (totals[r.month] ?? 0) + r.total;
     }
     return totals;
@@ -207,27 +285,74 @@ export class Reports implements OnInit {
 
   protected readonly pivotGrandTotal = computed(() => Object.values(this.pivotMonthTotals()).reduce((a, b) => a + b, 0));
 
-  /** Largest absolute monthly value in the pivot – scales the inline heat bars. */
-  protected readonly pivotMax = computed(() =>
-    Math.max(1, ...this.pivot().flatMap((r) => Object.values(r.byMonth).map((v) => Math.abs(v)))),
-  );
+  /** Largest absolute monthly value among the displayed rows (categories or groups) – scales the inline heat bars. */
+  protected readonly pivotMax = computed(() => {
+    const rows: { byMonth: Record<string, number> }[] = this.pivotMode() === 'groups' ? this.pivotGroups() : this.pivot();
+    return Math.max(1, ...rows.flatMap((r) => Object.values(r.byMonth).map((v) => Math.abs(v))));
+  });
+
+  // --- report 1: "Grupy" mode ---------------------------------------------------
+  private static readonly PIVOT_MODE_KEY = 'reports.pivot.mode';
+  protected readonly pivotMode = signal<PivotMode>(localStorage.getItem(Reports.PIVOT_MODE_KEY) === 'groups' ? 'groups' : 'categories');
+
+  protected setPivotMode(mode: PivotMode): void {
+    this.pivotMode.set(mode);
+    localStorage.setItem(Reports.PIVOT_MODE_KEY, mode);
+  }
+
+  /** Group rows (sortOrder, "Bez grupy" last) with monthly sums over their included categories. */
+  protected readonly pivotGroups = computed<GroupRow<PivotRow>[]>(() => {
+    const excluded = this.excluded();
+    return aggregateByGroup(this.pivot(), this.groupMap(), this.groupKeys(), (c) => !excluded.has(c), this.months().length);
+  });
+
+  /** Expanded group rows (▾); not persisted. */
+  protected readonly expandedGroups = signal<Set<string>>(new Set());
+
+  protected isExpanded(group: string): boolean {
+    return this.expandedGroups().has(group);
+  }
+
+  protected toggleExpanded(group: string): void {
+    this.expandedGroups.update((set) => {
+      const next = new Set(set);
+      if (next.has(group)) next.delete(group);
+      else next.add(group);
+      return next;
+    });
+  }
+
+  /** Group checkbox: ticks all categories of the group when any is unticked, otherwise unticks all. */
+  protected toggleGroupCategories(g: GroupRow<PivotRow>): void {
+    this.excluded.update((set) => {
+      const next = toggleGroupExclusion(set, g.categories.map((r) => r.category));
+      localStorage.setItem(Reports.EXCLUDED_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }
 
   // --- report 1: drill-down ---------------------------------------------------
-  /** Currently opened pivot cell; null = panel closed. */
-  protected readonly drill = signal<{ category: string | null; from: string; to: string } | null>(null);
+  /** Currently opened pivot cell; null = panel closed. `group` set = a group cell (rows filtered client-side to `categories`). */
+  protected readonly drill = signal<{ category: string | null; group: string | null; categories: string[] | null; from: string; to: string } | null>(null);
   protected readonly drillRows = signal<CategoryDetail[]>([]);
   protected readonly drillLoading = signal(false);
   protected readonly drillTotal = computed(() => this.drillRows().reduce((s, r) => s + r.amountPln, 0));
 
-  /** category = null → all categories; month = null → whole selected range. */
-  protected openDrill(category: string | null, month: string | null): void {
+  /**
+   * category = null → all categories; month = null → whole selected range.
+   * With `group` the details are fetched without a category and filtered client-side to the group's categories.
+   */
+  protected openDrill(category: string | null, month: string | null, group?: { key: string; categories: string[] }): void {
     const from = month ?? this.fromApplied();
     const to = month ?? this.toApplied();
-    this.drill.set({ category, from, to });
+    const state = { category: group ? null : category, group: group?.key ?? null, categories: group?.categories ?? null, from, to };
+    this.drill.set(state);
     this.drillLoading.set(true);
-    this.service.categoryMonthlyDetails(from, to, category ?? undefined).subscribe({
+    this.service.categoryMonthlyDetails(from, to, state.category ?? undefined).subscribe({
       next: (rows) => {
-        this.drillRows.set(rows);
+        if (this.drill() !== state) return; // stale response
+        const wanted = state.categories ? new Set(state.categories) : null;
+        this.drillRows.set(wanted ? rows.filter((r) => wanted.has(r.category || NO_CATEGORY)) : rows);
         this.drillLoading.set(false);
       },
       error: (err) => {
@@ -246,19 +371,37 @@ export class Reports implements OnInit {
     const d = this.drill();
     if (!d) return '';
     const period = d.from === d.to ? d.from : `${d.from} – ${d.to}`;
+    if (d.group) return `Grupa ${groupLabel(d.group)} · ${period}`;
     return `${d.category ?? 'Wszystkie kategorie'} · ${period}`;
+  }
+
+  /** Drill-down for a group row cell (month = null → whole range). */
+  protected openGroupDrill(g: GroupRow<PivotRow>, month: string | null): void {
+    this.openDrill(null, month, { key: g.group, categories: g.categories.map((r) => r.category) });
   }
 
   // --- pie: category share -------------------------------------------------
   protected readonly pieR = 100;
   protected readonly pieInner = 58;
   protected readonly pieC = 110;
+  /** Radii of the category ring: the full donut without groups, the inner ring under the group ring otherwise. */
+  protected readonly pieCatRadii = computed(() => (this.hasGroups() ? { R: 78, r: 50 } : { R: this.pieR, r: this.pieInner }));
+  /** Radii of the outer (group) ring. */
+  protected readonly pieGroupRadii = { R: 100, r: 82 };
 
-  /** Expense categories (net < 0) included in the pivot, as donut slices with share of the total. */
+  /**
+   * Expense categories (net < 0) included in the pivot, as donut slices with share of the total.
+   * With groups the slices are ordered by group (then by amount) so that the category ring lines up with the group ring.
+   */
   protected readonly pieSlices = computed<PieSlice[]>(() => {
     const excluded = this.excluded();
     const rows = this.pivot().filter((r) => !excluded.has(r.category) && r.total < 0);
+    if (this.hasGroups()) {
+      const rank = new Map(this.groupKeys().map((k, i) => [k, i]));
+      rows.sort((a, b) => (rank.get(this.groupOf(a.category)) ?? 0) - (rank.get(this.groupOf(b.category)) ?? 0) || a.total - b.total);
+    }
     const sum = rows.reduce((s, r) => s - r.total, 0);
+    const { R, r: ir } = this.pieCatRadii();
     let angle = -Math.PI / 2;
     return rows.map((r, i) => {
       const value = -r.total;
@@ -267,13 +410,16 @@ export class Reports implements OnInit {
       const end = angle + Math.min(frac, 0.99999) * 2 * Math.PI;
       angle = start + frac * 2 * Math.PI;
       const mid = (start + end) / 2;
-      const lr = (this.pieR + this.pieInner) / 2;
+      const lr = (R + ir) / 2;
+      const group = this.groupOf(r.category);
       return {
         category: r.category,
+        group,
+        groupLabel: groupLabel(group),
         value,
         pct: frac * 100,
         color: PIE_COLORS[i % PIE_COLORS.length],
-        path: this.arcPath(start, end),
+        path: this.arcPath(start, end, R, ir),
         labelX: this.pieC + lr * Math.cos(mid),
         labelY: this.pieC + lr * Math.sin(mid),
       };
@@ -282,8 +428,38 @@ export class Reports implements OnInit {
 
   protected readonly pieTotal = computed(() => this.pieSlices().reduce((s, x) => s + x.value, 0));
 
-  private arcPath(start: number, end: number): string {
-    const R = this.pieR, r = this.pieInner, c = this.pieC;
+  /** Outer ring: category slices summed per group (same order, so the rings align). Empty when there are no groups. */
+  protected readonly pieGroupSlices = computed<PieGroupSlice[]>(() => {
+    if (!this.hasGroups()) return [];
+    const slices = this.pieSlices();
+    const sum = slices.reduce((s, x) => s + x.value, 0);
+    const { R, r } = this.pieGroupRadii;
+    const lr = (R + r) / 2;
+    const out: PieGroupSlice[] = [];
+    let angle = -Math.PI / 2;
+    for (let i = 0; i < slices.length; ) {
+      const key = slices[i].group;
+      let value = 0;
+      const categories: string[] = [];
+      for (; i < slices.length && slices[i].group === key; i++) {
+        value += slices[i].value;
+        categories.push(slices[i].category);
+      }
+      const frac = sum ? value / sum : 0;
+      const start = angle;
+      const end = angle + Math.min(frac, 0.99999) * 2 * Math.PI;
+      angle = start + frac * 2 * Math.PI;
+      const mid = (start + end) / 2;
+      out.push({
+        group: key, label: groupLabel(key), value, pct: frac * 100, color: this.groupColor(key), categories,
+        path: this.arcPath(start, end, R, r), labelX: this.pieC + lr * Math.cos(mid), labelY: this.pieC + lr * Math.sin(mid),
+      });
+    }
+    return out;
+  });
+
+  private arcPath(start: number, end: number, R: number, r: number): string {
+    const c = this.pieC;
     const large = end - start > Math.PI ? 1 : 0;
     const p = (rad: number, a: number) => `${(c + rad * Math.cos(a)).toFixed(2)},${(c + rad * Math.sin(a)).toFixed(2)}`;
     return `M${p(R, start)} A${R},${R} 0 ${large} 1 ${p(R, end)} L${p(r, end)} A${r},${r} 0 ${large} 0 ${p(r, start)} Z`;
@@ -296,7 +472,10 @@ export class Reports implements OnInit {
   /** All categories present in the loaded MAT window, sorted by total spend. */
   protected readonly matCategories = computed(() => {
     const totals = new Map<string, number>();
-    for (const r of this.matData()) totals.set(r.category, (totals.get(r.category) ?? 0) + r.total);
+    for (const r of this.matData()) {
+      if (!this.isVisible(r.category)) continue;
+      totals.set(r.category, (totals.get(r.category) ?? 0) + r.total);
+    }
     return [...totals.entries()].sort((a, b) => a[1] - b[1]).map(([c]) => c);
   });
 
@@ -328,7 +507,7 @@ export class Reports implements OnInit {
     const first = this.firstMonth();
     const byMonth = new Map<string, number>();
     for (const r of this.matData()) {
-      if (excluded.has(r.category)) continue;
+      if (excluded.has(r.category) || !this.isVisible(r.category)) continue;
       byMonth.set(r.month, (byMonth.get(r.month) ?? 0) + r.total);
     }
     return this.months().map((m) => {
@@ -383,14 +562,20 @@ export class Reports implements OnInit {
 
   protected readonly dailyCur = computed(() => aggregateMonth(this.dailyRows(), this.dailyMonth()));
   protected readonly dailyPrev = computed(() => aggregateMonth(this.dailyPrevRows(), shiftMonth(this.dailyMonth(), -1)));
-  /** All categories (legend): current month's order, then categories present only in the previous month. */
-  protected readonly dailyCategories = computed(() => mergeCategories(this.dailyCur(), this.dailyPrev()));
+  /** Categories passing the group filter (legend): current month's order, then categories present only in the previous month. */
+  protected readonly dailyCategories = computed(() => mergeCategories(this.dailyCur(), this.dailyPrev()).filter((c) => this.isVisible(c)));
+  /** Categories left out of the bars and totals: unticked ones plus those hidden by the group filter. */
+  protected readonly dailyOmitted = computed(() => {
+    const out = new Set(this.dailyExcluded());
+    for (const c of mergeCategories(this.dailyCur(), this.dailyPrev())) if (!this.isVisible(c)) out.add(c);
+    return out;
+  });
   protected readonly dailyColors = computed(() => new Map(this.dailyCategories().map((c, i) => [c, PIE_COLORS[i % PIE_COLORS.length]])));
   protected readonly dailyIsCurrent = computed(() => this.dailyMonth() === this.currentMonth);
   /** Days drawn as bars: whole month for past months, up to today for the current one. */
   protected readonly dailyElapsed = computed(() => elapsedDays(this.dailyMonth(), new Date()));
-  protected readonly dailyTotals = computed(() => totalSeries(this.dailyCur(), this.dailyExcluded()));
-  protected readonly dailyPrevTotals = computed(() => totalSeries(this.dailyPrev(), this.dailyExcluded()));
+  protected readonly dailyTotals = computed(() => totalSeries(this.dailyCur(), this.dailyOmitted()));
+  protected readonly dailyPrevTotals = computed(() => totalSeries(this.dailyPrev(), this.dailyOmitted()));
   /** Net total of included categories up to today (or the whole month). */
   protected readonly dailyTotal = computed(() => (this.dailyElapsed() ? this.dailyTotals()[this.dailyElapsed() - 1] : 0));
   /** Previous month's cumulative total at the same day index. */
@@ -404,6 +589,26 @@ export class Reports implements OnInit {
     const [y, m] = this.dailyMonth().split('-').map(Number);
     return new Date(y, m - 1, 1).toLocaleDateString('pl', { month: 'long', year: 'numeric' });
   });
+
+  /** Group toggles above the daily legend: visible legend categories bucketed by group (groupKeys order). */
+  protected readonly dailyGroups = computed(() => {
+    const excluded = this.dailyExcluded();
+    return groupCategories(this.dailyCategories(), this.groupMap(), this.groupKeys()).map((g) => ({
+      ...g,
+      label: groupLabel(g.group),
+      color: this.groupColor(g.group),
+      includedCount: g.categories.filter((c) => !excluded.has(c)).length,
+    }));
+  });
+
+  /** Same semantics as the pivot's group checkbox, persisted in the daily key. */
+  protected toggleDailyGroup(categories: string[]): void {
+    this.dailyExcluded.update((set) => {
+      const next = toggleGroupExclusion(set, categories);
+      localStorage.setItem(Reports.DAILY_EXCLUDED_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }
 
   protected dailyIncluded(category: string): boolean {
     return !this.dailyExcluded().has(category);
@@ -520,7 +725,7 @@ export class Reports implements OnInit {
   /** Y range: `up` = largest stacked spending, `down` = largest stacked net inflow (both ≥ 0, in PLN). */
   protected readonly dailyScale = computed(() => {
     const cur = this.dailyCur();
-    const excluded = this.dailyExcluded();
+    const excluded = this.dailyOmitted();
     let up = 0;
     let down = 0;
     for (let i = 0; i < this.dailyElapsed(); i++) {
@@ -559,7 +764,7 @@ export class Reports implements OnInit {
 
   protected readonly dailySegments = computed<DailySegment[]>(() => {
     const cur = this.dailyCur();
-    const excluded = this.dailyExcluded();
+    const excluded = this.dailyOmitted();
     const colors = this.dailyColors();
     const totals = this.dailyTotals();
     const { zeroY, k } = this.dailyScale();

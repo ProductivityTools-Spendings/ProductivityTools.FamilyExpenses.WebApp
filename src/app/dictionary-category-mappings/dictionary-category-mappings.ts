@@ -8,6 +8,40 @@ import {
   UnmappedName,
 } from '../services/dictionary-category-mapping.service';
 import { SpendingService } from '../services/spending.service';
+import {
+  CategoryGroup,
+  CategoryWithGroup,
+  DictionaryCategoryGroupService,
+} from '../services/dictionary-category-group.service';
+
+type Tab = 'mappings' | 'groups';
+
+/** Fallback colour used for groups created without an explicit colour. */
+const DEFAULT_GROUP_COLOR = '#1976d2';
+
+/** Row of the "Grupy" table on the groups tab. */
+interface GroupRow {
+  id: number;
+  name: string;
+  sortOrder: number;
+  color: string | null;
+  /** number of categories assigned to the group */
+  categoriesCount: number;
+  // working copy used by the inline edit inputs
+  draftName: string;
+  draftSortOrder: number;
+  draftColor: string;
+  editing: boolean;
+  saving: boolean;
+}
+
+/** Row of the "Kategorie" table on the groups tab. */
+interface CategoryRow {
+  name: string;
+  groupId: number | null;
+  groupName: string | null;
+  saving: boolean;
+}
 
 interface EditRow {
   id: number;
@@ -32,6 +66,24 @@ interface EditRow {
 export class DictionaryCategoryMappings implements OnInit {
   private readonly service = inject(DictionaryCategoryMappingService);
   private readonly spendingService = inject(SpendingService);
+  private readonly groupService = inject(DictionaryCategoryGroupService);
+
+  /** Which tab is shown: "Nazwa → kategoria" (mappings) or "Grupy kategorii" (groups). */
+  protected readonly tab = signal<Tab>('mappings');
+
+  // ---- groups tab state ----
+  protected readonly groups = signal<GroupRow[]>([]);
+  protected readonly groupCategories = signal<CategoryRow[]>([]);
+  protected readonly groupsLoading = signal(false);
+  /** true once the groups tab data has been fetched at least once */
+  private groupsLoaded = false;
+  /** Text filter over category name and group name on the groups tab. */
+  protected groupFilter = '';
+  // new-group form
+  protected newGroupName = '';
+  protected newGroupColor = DEFAULT_GROUP_COLOR;
+  protected newGroupSortOrder: number | null = null;
+  protected readonly creatingGroup = signal(false);
 
   protected readonly rows = signal<EditRow[]>([]);
   protected readonly unmapped = signal<UnmappedName[]>([]);
@@ -160,6 +212,228 @@ export class DictionaryCategoryMappings implements OnInit {
   private patch(id: number, changes: Partial<EditRow>): void {
     this.rows.update((rs) => rs.map((r) => (r.id === id ? { ...r, ...changes } : r)));
   }
+
+  // ---------------------------------------------------------------------------
+  // Groups tab
+  // ---------------------------------------------------------------------------
+
+  protected selectTab(tab: Tab): void {
+    this.tab.set(tab);
+    this.status.set(null);
+    this.error.set(null);
+    if (tab === 'groups' && !this.groupsLoaded) {
+      this.loadGroups();
+    }
+  }
+
+  /** Fetches groups and all categories (GET /category-groups + GET /category-groups/categories). */
+  protected loadGroups(): void {
+    this.groupsLoading.set(true);
+    this.error.set(null);
+    forkJoin({
+      groups: this.groupService.getAll(),
+      categories: this.groupService.getCategories(),
+    }).subscribe({
+      next: ({ groups, categories }) => {
+        this.groups.set(groups.map(toGroupRow).sort(byGroupOrder));
+        this.groupCategories.set(categories.map(toCategoryRow).sort(byCategoryName));
+        this.groupsLoaded = true;
+        this.groupsLoading.set(false);
+      },
+      error: (err) => {
+        this.error.set(describeError(err, 'Nie udało się pobrać grup kategorii.'));
+        this.groupsLoading.set(false);
+      },
+    });
+  }
+
+  protected visibleGroupCategories(): CategoryRow[] {
+    const f = this.groupFilter.trim().toLowerCase();
+    if (!f) return this.groupCategories();
+    return this.groupCategories().filter(
+      (c) => c.name.toLowerCase().includes(f) || (c.groupName ?? '').toLowerCase().includes(f),
+    );
+  }
+
+  /** Number of categories without a group (for the summary line). */
+  protected ungroupedCount(): number {
+    return this.groupCategories().filter((c) => c.groupId === null).length;
+  }
+
+  /** Colour of the group a category belongs to, or null when ungrouped / colourless. */
+  protected groupColor(groupId: number | null): string | null {
+    if (groupId === null) return null;
+    return this.groups().find((g) => g.id === groupId)?.color ?? null;
+  }
+
+  protected createGroup(): void {
+    const name = this.newGroupName.trim();
+    if (!name) {
+      this.error.set('Podaj nazwę grupy.');
+      return;
+    }
+    this.creatingGroup.set(true);
+    this.error.set(null);
+    this.groupService
+      .create({
+        name,
+        color: this.newGroupColor || null,
+        sortOrder: this.newGroupSortOrder ?? this.nextSortOrder(),
+      })
+      .subscribe({
+        next: (created) => {
+          this.groups.update((gs) => [...gs, toGroupRow(created)].sort(byGroupOrder));
+          this.newGroupName = '';
+          this.newGroupColor = DEFAULT_GROUP_COLOR;
+          this.newGroupSortOrder = null;
+          this.creatingGroup.set(false);
+          this.status.set(`Dodano grupę: ${created.name}.`);
+        },
+        error: (err) => {
+          this.error.set(describeError(err, 'Nie udało się dodać grupy.'));
+          this.creatingGroup.set(false);
+        },
+      });
+  }
+
+  /** Next free order number: one more than the current maximum. */
+  private nextSortOrder(): number {
+    return this.groups().reduce((max, g) => Math.max(max, g.sortOrder), 0) + 1;
+  }
+
+  protected startGroupEdit(g: GroupRow): void {
+    this.patchGroup(g.id, {
+      editing: true,
+      draftName: g.name,
+      draftSortOrder: g.sortOrder,
+      draftColor: g.color ?? DEFAULT_GROUP_COLOR,
+    });
+  }
+
+  protected cancelGroupEdit(g: GroupRow): void {
+    this.patchGroup(g.id, { editing: false });
+  }
+
+  protected saveGroup(g: GroupRow): void {
+    const name = g.draftName.trim();
+    if (!name) {
+      this.error.set('Nazwa grupy nie może być pusta.');
+      return;
+    }
+    this.patchGroup(g.id, { saving: true });
+    this.error.set(null);
+    this.groupService
+      .update(g.id, { name, sortOrder: Number(g.draftSortOrder) || 0, color: g.draftColor || null })
+      .subscribe({
+        next: (saved) => {
+          this.patchGroup(g.id, {
+            name: saved.name,
+            sortOrder: saved.sortOrder,
+            color: saved.color,
+            categoriesCount: saved.categories?.length ?? g.categoriesCount,
+            editing: false,
+            saving: false,
+          });
+          this.groups.update((gs) => [...gs].sort(byGroupOrder));
+          // keep the group name shown in the categories table in sync
+          this.groupCategories.update((cs) =>
+            cs.map((c) => (c.groupId === saved.id ? { ...c, groupName: saved.name } : c)),
+          );
+          this.status.set(`Zapisano grupę: ${saved.name}.`);
+        },
+        error: (err) => {
+          this.patchGroup(g.id, { saving: false });
+          this.error.set(describeError(err, 'Nie udało się zapisać grupy.'));
+        },
+      });
+  }
+
+  protected removeGroup(g: GroupRow): void {
+    const suffix = g.categoriesCount > 0 ? ` Kategorie z tej grupy (${g.categoriesCount}) zostaną bez grupy.` : '';
+    if (!confirm(`Usunąć grupę „${g.name}”?${suffix}`)) return;
+    this.patchGroup(g.id, { saving: true });
+    this.error.set(null);
+    this.groupService.delete(g.id).subscribe({
+      next: () => {
+        this.groups.update((gs) => gs.filter((x) => x.id !== g.id));
+        // the backend clears group_id via FK ON DELETE SET NULL; mirror it locally
+        this.groupCategories.update((cs) =>
+          cs.map((c) => (c.groupId === g.id ? { ...c, groupId: null, groupName: null } : c)),
+        );
+        this.status.set(`Usunięto grupę: ${g.name}.`);
+      },
+      error: (err) => {
+        this.patchGroup(g.id, { saving: false });
+        this.error.set(describeError(err, 'Nie udało się usunąć grupy.'));
+      },
+    });
+  }
+
+  /** Called on <select> change in the categories table; saves immediately. */
+  protected assignGroup(c: CategoryRow, event: Event): void {
+    const select = event.target as HTMLSelectElement;
+    const value = select.value;
+    const groupId = value === '' ? null : Number(value);
+    if (groupId === c.groupId) return;
+    const previousGroupId = c.groupId;
+    this.patchCategory(c.name, { saving: true });
+    this.error.set(null);
+    this.groupService.setCategoryGroup(c.name, groupId).subscribe({
+      next: (saved) => {
+        this.patchCategory(c.name, { groupId: saved.groupId, groupName: saved.groupName, saving: false });
+        this.adjustGroupCount(previousGroupId, -1);
+        this.adjustGroupCount(saved.groupId, +1);
+        this.status.set(
+          saved.groupId === null
+            ? `Kategoria „${saved.name}” jest teraz bez grupy.`
+            : `Przypisano „${saved.name}” do grupy „${saved.groupName}”.`,
+        );
+      },
+      error: (err) => {
+        // The bound value did not change, so Angular will not touch the DOM;
+        // restore the previous option on the element directly.
+        select.value = previousGroupId === null ? '' : previousGroupId.toString();
+        this.patchCategory(c.name, { saving: false });
+        this.error.set(describeError(err, 'Nie udało się przypisać grupy.'));
+      },
+    });
+  }
+
+  private adjustGroupCount(groupId: number | null, delta: number): void {
+    if (groupId === null) return;
+    this.groups.update((gs) =>
+      gs.map((g) => (g.id === groupId ? { ...g, categoriesCount: Math.max(0, g.categoriesCount + delta) } : g)),
+    );
+  }
+
+  private patchGroup(id: number, changes: Partial<GroupRow>): void {
+    this.groups.update((gs) => gs.map((g) => (g.id === id ? { ...g, ...changes } : g)));
+  }
+
+  private patchCategory(name: string, changes: Partial<CategoryRow>): void {
+    this.groupCategories.update((cs) => cs.map((c) => (c.name === name ? { ...c, ...changes } : c)));
+  }
+}
+
+function toGroupRow(g: CategoryGroup): GroupRow {
+  return {
+    id: g.id, name: g.name, sortOrder: g.sortOrder ?? 0, color: g.color ?? null,
+    categoriesCount: g.categories?.length ?? 0,
+    draftName: g.name, draftSortOrder: g.sortOrder ?? 0, draftColor: g.color ?? DEFAULT_GROUP_COLOR,
+    editing: false, saving: false,
+  };
+}
+
+function toCategoryRow(c: CategoryWithGroup): CategoryRow {
+  return { name: c.name, groupId: c.groupId ?? null, groupName: c.groupName ?? null, saving: false };
+}
+
+function byGroupOrder(a: GroupRow, b: GroupRow): number {
+  return a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'pl');
+}
+
+function byCategoryName(a: CategoryRow, b: CategoryRow): number {
+  return a.name.localeCompare(b.name, 'pl');
 }
 
 function toRow(m: CategoryMapping): EditRow {

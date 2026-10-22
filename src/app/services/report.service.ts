@@ -8,6 +8,16 @@ export interface CategoryMonth {
   category: string;
   total: number;
   count: number;
+  /** Name of the category's group; null = ungrouped. */
+  group: string | null;
+}
+
+/** Category group as returned in the hygiene report. */
+export interface CategoryGroupInfo {
+  id: number;
+  name: string;
+  color: string | null;
+  sortOrder: number;
 }
 
 export interface CategoryDetail {
@@ -22,6 +32,8 @@ export interface CategoryDetail {
   account: string | null;
   category: string | null;
   note: string | null;
+  /** Name of the category's group; null = ungrouped or no category. */
+  group: string | null;
 }
 
 export interface CashflowMonth {
@@ -68,6 +80,8 @@ export interface Hygiene {
   uncategorizedSample: { id: number; operationDate: string; operationType: string; name: string; amountPln: number }[];
   /** Earliest month (YYYY-MM) with any spending; null when the table is empty. */
   firstMonth: string | null;
+  /** All category groups (may be empty when the user has not created any). */
+  groups: CategoryGroupInfo[];
 }
 
 @Injectable({ providedIn: 'root' })

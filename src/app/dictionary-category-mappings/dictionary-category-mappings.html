@@ -2,12 +2,20 @@
   <header class="dict__header">
     <h2>Słownik kategorii</h2>
     <div class="dict__actions">
-      <span class="dict__count">{{ rows().length }} wpisów</span>
-      <button type="button" (click)="load()" [disabled]="loading()">Odśwież</button>
+      @if (tab() === 'mappings') {
+        <span class="dict__count">{{ rows().length }} wpisów</span>
+        <button type="button" (click)="load()" [disabled]="loading()">Odśwież</button>
+      } @else {
+        <span class="dict__count">{{ groups().length }} grup · {{ groupCategories().length }} kategorii</span>
+        <button type="button" (click)="loadGroups()" [disabled]="groupsLoading()">Odśwież</button>
+      }
     </div>
   </header>
 
-  <p class="dict__hint">Nazwa transakcji (dokładnie taka jak w kolumnie „Nazwa”) → kategoria. „Uzupełnij kategorie” na stronie transakcji przypisuje ją wszystkim transakcjom o tej nazwie, które nie mają jeszcze kategorii.</p>
+  <nav class="dict__tabs" role="tablist">
+    <button type="button" role="tab" class="dict__tab" [class.active]="tab() === 'mappings'" [attr.aria-selected]="tab() === 'mappings'" (click)="selectTab('mappings')">Nazwa → kategoria</button>
+    <button type="button" role="tab" class="dict__tab" [class.active]="tab() === 'groups'" [attr.aria-selected]="tab() === 'groups'" (click)="selectTab('groups')">Grupy kategorii</button>
+  </nav>
 
   @if (status(); as msg) {
     <p class="dict__status">{{ msg }}</p>
@@ -15,6 +23,9 @@
   @if (error(); as msg) {
     <p class="dict__error">{{ msg }}</p>
   }
+
+  @if (tab() === 'mappings') {
+  <p class="dict__hint">Nazwa transakcji (dokładnie taka jak w kolumnie „Nazwa”) → kategoria. „Uzupełnij kategorie” na stronie transakcji przypisuje ją wszystkim transakcjom o tej nazwie, które nie mają jeszcze kategorii.</p>
 
   <form class="dict__form" (ngSubmit)="create()">
     <input id="new-key" name="key" [(ngModel)]="newKey" placeholder="Nazwa transakcji (np. ZABKA Z4649 K.1)" autocomplete="off" />
@@ -90,4 +101,113 @@
       }
     </aside>
   </div>
+  } @else {
+  <!-- ======================= Grupy kategorii ======================= -->
+  <p class="dict__hint">Grupy łączą kategorie w większe zbiory (np. „Dom”, „Jedzenie”) używane w raportach. Każda kategoria może należeć do jednej grupy; zmiana w kolumnie „Grupa” zapisuje się od razu.</p>
+
+  <div class="dict__layout dict__layout--groups">
+    <!-- Left panel: groups CRUD -->
+    <div class="dict__table-wrapper">
+      <h3 class="dict__panel-title">Grupy</h3>
+      <form class="dict__form dict__form--group" (ngSubmit)="createGroup()">
+        <input id="new-group-name" name="groupName" [(ngModel)]="newGroupName" placeholder="Nazwa grupy (np. Dom)" autocomplete="off" />
+        <input class="dict__color" type="color" name="groupColor" [(ngModel)]="newGroupColor" title="Kolor grupy" />
+        <input class="dict__order" type="number" name="groupOrder" [(ngModel)]="newGroupSortOrder" placeholder="Kolejność" min="0" step="1" title="Kolejność (liczba)" />
+        <button type="submit" [disabled]="creatingGroup()">{{ creatingGroup() ? 'Dodawanie…' : 'Dodaj' }}</button>
+      </form>
+
+      @if (groupsLoading()) {
+        <p class="dict__info">Ładowanie…</p>
+      } @else if (groups().length === 0) {
+        <p class="dict__info">Brak grup. Dodaj pierwszą powyżej.</p>
+      } @else {
+        <table class="dict__table">
+          <thead>
+            <tr>
+              <th class="num">Kol.</th>
+              <th>Grupa</th>
+              <th class="num">Kategorii</th>
+              <th class="actions"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (g of groups(); track g.id) {
+              <tr [class.editing]="g.editing">
+                @if (g.editing) {
+                  <td class="num"><input class="dict__order" type="number" [(ngModel)]="g.draftSortOrder" [name]="'group-order-' + g.id" min="0" step="1" (keyup.enter)="saveGroup(g)" (keyup.escape)="cancelGroupEdit(g)" /></td>
+                  <td>
+                    <span class="dict__group-cell">
+                      <input class="dict__color" type="color" [(ngModel)]="g.draftColor" [name]="'group-color-' + g.id" title="Kolor grupy" />
+                      <input [(ngModel)]="g.draftName" [name]="'group-name-' + g.id" (keyup.enter)="saveGroup(g)" (keyup.escape)="cancelGroupEdit(g)" />
+                    </span>
+                  </td>
+                  <td class="num">{{ g.categoriesCount }}</td>
+                  <td class="actions">
+                    <button type="button" (click)="saveGroup(g)" [disabled]="g.saving">{{ g.saving ? '…' : 'Zapisz' }}</button>
+                    <button type="button" class="secondary" (click)="cancelGroupEdit(g)" [disabled]="g.saving">Anuluj</button>
+                  </td>
+                } @else {
+                  <td class="num">{{ g.sortOrder }}</td>
+                  <td>
+                    <span class="dict__group-cell">
+                      <span class="dict__swatch" [style.background]="g.color || 'transparent'" [class.empty]="!g.color" [title]="g.color || 'brak koloru'"></span>
+                      {{ g.name }}
+                    </span>
+                  </td>
+                  <td class="num">{{ g.categoriesCount }}</td>
+                  <td class="actions">
+                    <button type="button" class="secondary" (click)="startGroupEdit(g)" [disabled]="g.saving">Edytuj</button>
+                    <button type="button" class="danger" (click)="removeGroup(g)" [disabled]="g.saving">Usuń</button>
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+
+    <!-- Right panel: category → group assignment -->
+    <div class="dict__table-wrapper">
+      <h3 class="dict__panel-title">Kategorie</h3>
+      <input class="dict__filter" name="groupFilter" [(ngModel)]="groupFilter" placeholder="Filtruj po kategorii lub grupie…" autocomplete="off" />
+      @if (!groupsLoading()) {
+        <p class="dict__summary">{{ ungroupedCount() }} z {{ groupCategories().length }} kategorii bez grupy</p>
+      }
+      @if (groupsLoading()) {
+        <p class="dict__info">Ładowanie…</p>
+      } @else if (groupCategories().length === 0) {
+        <p class="dict__info">Brak kategorii w słowniku.</p>
+      } @else {
+        <table class="dict__table">
+          <thead>
+            <tr>
+              <th>Kategoria</th>
+              <th>Grupa</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (c of visibleGroupCategories(); track c.name) {
+              <tr [class.saving]="c.saving">
+                <td>
+                  <span class="dict__group-cell">
+                    <span class="dict__swatch" [style.background]="groupColor(c.groupId) || 'transparent'" [class.empty]="!groupColor(c.groupId)" [title]="c.groupName || 'bez grupy'"></span>
+                    {{ c.name }}
+                  </span>
+                </td>
+                <td>
+                  <select [name]="'cat-group-' + c.name" (change)="assignGroup(c, $event)" [disabled]="c.saving">
+                    <!-- [selected] on the options (not [value] on the select): options are created after the select's bindings run -->
+                    <option value="" [selected]="c.groupId === null">— bez grupy —</option>
+                    @for (g of groups(); track g.id) { <option [value]="g.id.toString()" [selected]="g.id === c.groupId">{{ g.name }}</option> }
+                  </select>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+  </div>
+  }
 </section>

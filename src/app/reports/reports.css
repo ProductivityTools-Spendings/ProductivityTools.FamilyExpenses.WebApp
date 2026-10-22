@@ -540,3 +540,41 @@ td.selected {
   font-weight: 600;
   fill: #333;
 }
+
+/* category groups: chip filter, pivot "Grupy" mode, two-ring donut */
+.dot {
+  display: inline-block;
+  width: 0.6rem;
+  height: 0.6rem;
+  margin-right: 0.35rem;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.pivot-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.tbl--pivot tr.group-row td {
+  background: #f7f9fc;
+  border-top: 1px solid #e0e0e0;
+}
+
+.tbl--pivot tr.sub td.sticky {
+  padding-left: 1.6rem;
+  font-size: 0.8rem;
+}
+
+.expander {
+  width: 1rem;
+  font-size: 0.8rem;
+  text-decoration: none !important;
+}
+
+.daily-groups {
+  margin-bottom: 0.35rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px dashed #e0e0e0;
+}
