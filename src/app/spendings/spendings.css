@@ -128,6 +128,12 @@
   text-overflow: ellipsis;
 }
 
+/* transaction name: hard 200px cap, full text in the title tooltip */
+.name {
+  max-width: 200px;
+  white-space: nowrap;
+}
+
 tr.negative .num {
   color: #c62828;
 }
