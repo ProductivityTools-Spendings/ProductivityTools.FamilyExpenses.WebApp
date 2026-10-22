@@ -12,6 +12,14 @@ export interface AnnotationResult {
   rowsUpdated: number;
 }
 
+/** Mirrors the refund endpoints' RefundState from the WebApi. */
+export interface RefundState {
+  spendingId: number;
+  refundExpected: boolean;
+  refundSpendingId: number | null;
+  refundOfSpendingId: number | null;
+}
+
 /** Mirrors SpendingController.FillResult from the WebApi. */
 export interface FillResult {
   updated: number;
@@ -35,6 +43,21 @@ export class SpendingService {
   /** Replaces category and note of one spending (blank = cleared); the API mirrors them onto duplicate twins. */
   updateAnnotations(id: number, category: string | null, note: string | null): Observable<AnnotationResult> {
     return this.http.put<AnnotationResult>(`${this.baseUrl}/${id}/annotations`, { category, note });
+  }
+
+  /** Flags an expense as "refund expected". */
+  expectRefund(id: number): Observable<RefundState> {
+    return this.http.put<RefundState>(`${this.baseUrl}/${id}/refund/expect`, null);
+  }
+
+  /** Links an expense with the row that refunds it. */
+  linkRefund(id: number, refundSpendingId: number): Observable<RefundState> {
+    return this.http.put<RefundState>(`${this.baseUrl}/${id}/refund/link`, { refundSpendingId });
+  }
+
+  /** Clears the refund flag and the link (both sides) of an expense. */
+  clearRefund(id: number): Observable<RefundState> {
+    return this.http.delete<RefundState>(`${this.baseUrl}/${id}/refund`);
   }
 
   /** Fills missing accounts in spending_details from dictionary_account. */

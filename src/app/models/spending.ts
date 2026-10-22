@@ -29,4 +29,11 @@ export interface Spending {
   /** id of the canonical spending this row duplicates (debit mirroring a transfer); null = counts */
   duplicateOf: number | null;
   detailsUpdatedAt: string | null;
+  // refund marking / linking
+  /** true when the user expects this expense to be refunded */
+  refundExpected: boolean;
+  /** for an expense: id of the linked refund row; null = not linked yet */
+  refundSpendingId: number | null;
+  /** for a refund row: id of the expense it refunds; null = this row is not a refund */
+  refundOfSpendingId: number | null;
 }

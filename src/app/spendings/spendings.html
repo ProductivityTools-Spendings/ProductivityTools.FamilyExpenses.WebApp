@@ -33,6 +33,13 @@
     <p class="spendings__status" [class.spendings__status--error]="statusFailed()">{{ msg }}</p>
   }
 
+  @if (linkingFor(); as l) {
+    <p class="spendings__status spendings__status--link">
+      Wybierz transakcję zwrotu dla #{{ l.id }} ({{ l.name }}, {{ l.amount | currency: 'PLN' : 'symbol-narrow' : '1.2-2' : 'pl' }})
+      · <button type="button" class="link" (click)="cancelLinking()">anuluj</button>
+    </p>
+  }
+
   @if (loading()) {
     <p class="spendings__info">Ładowanie…</p>
   } @else if (error()) {
@@ -55,14 +62,17 @@
             <th>Konto</th>
             <th>Kategoria</th>
             <th>Allegro</th>
+            <th>Zwrot</th>
             <th>Notatka</th>
           </tr>
         </thead>
         <tbody>
           @for (s of visibleSpendings(); track s.id) {
-            <tr [class.negative]="s.amount < 0" [class.positive]="s.amount > 0"
+            <tr [id]="'spending-' + s.id" [class.negative]="s.amount < 0" [class.positive]="s.amount > 0"
                 [class.duplicate]="s.duplicateOf !== null"
                 [class.primary]="!hideDuplicates() && isPrimary(s)"
+                [class.refund-expected]="isRefundExpected(s)"
+                [class.highlight]="highlight() === s.id"
                 [title]="s.duplicateOf !== null ? 'Duplikat transakcji #' + s.duplicateOf : (isPrimary(s) ? 'Operacja podstawowa – ma duplikat' : '')">
               <td>{{ s.id }}</td>
               <td>{{ s.operationDate }}</td>
@@ -100,6 +110,25 @@
               <td>
                 @if (s.allegroRawEmailId !== null) {
                   <button type="button" class="allegro-btn" (click)="openAllegro(s)" title="Pokaż, co kupiono w tym zamówieniu">Allegro ▸</button>
+                }
+              </td>
+              <td class="refund">
+                @if (s.refundOfSpendingId !== null) {
+                  <button type="button" class="refund-badge" (click)="focusRow(s.refundOfSpendingId)" title="Pokaż wydatek">zwrot za #{{ s.refundOfSpendingId }}</button>
+                } @else if (linkingFor(); as l) {
+                  @if (l.id === s.id) {
+                    <button type="button" class="refund-btn" (click)="cancelLinking()">Anuluj</button>
+                  } @else {
+                    <button type="button" class="refund-btn refund-btn--link" (click)="linkRefund(s)" [disabled]="isRefundBusy(l)">Połącz</button>
+                  }
+                } @else if (s.refundSpendingId !== null) {
+                  <button type="button" class="refund-badge" (click)="focusRow(s.refundSpendingId)" title="Pokaż zwrot">zwrot → #{{ s.refundSpendingId }}</button>
+                  <button type="button" class="refund-x" (click)="clearRefund(s)" [disabled]="isRefundBusy(s)" title="Usuń oznaczenie">✕</button>
+                } @else if (s.refundExpected) {
+                  <button type="button" class="refund-btn" (click)="startLinking(s)" [disabled]="isRefundBusy(s)">Zwrot</button>
+                  <button type="button" class="refund-x" (click)="clearRefund(s)" [disabled]="isRefundBusy(s)" title="Usuń oznaczenie">✕</button>
+                } @else {
+                  <button type="button" class="refund-btn" (click)="expectRefund(s)" [disabled]="isRefundBusy(s)">Do zwrotu</button>
                 }
               </td>
               <td class="note editable" (click)="startEdit(s)" [title]="isEditing(s) ? '' : (s.note ?? 'Kliknij, aby edytować')">

@@ -58,6 +58,22 @@
   color: #e65100;
 }
 
+/* link-mode hint: "pick the refund row for expense #id" */
+.spendings__status--link {
+  background: #e3f2fd;
+  color: #0d47a1;
+}
+
+.spendings__status--link .link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: #1976d2;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: inherit;
+}
+
 .spendings__info {
   color: #666;
 }
@@ -123,6 +139,56 @@ tr.positive .num {
 tr.duplicate {
   opacity: 0.55;
   text-decoration: line-through;
+}
+
+/* refund marking: red while a refund is expected but not linked yet; amount colours still apply via .num */
+tr.refund-expected td {
+  background: #ffebee;
+}
+
+tr.highlight td {
+  background: #fff9c4;
+  transition: background 0.3s;
+}
+
+.refund-btn,
+.refund-x {
+  padding: 0.1rem 0.5rem;
+  border: 1px solid #1976d2;
+  border-radius: 999px;
+  background: #fff;
+  color: #1976d2;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.refund-btn--link {
+  background: #1976d2;
+  color: #fff;
+}
+
+.refund-btn:disabled,
+.refund-x:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.refund-badge {
+  padding: 0.05rem 0.4rem;
+  border: none;
+  border-radius: 999px;
+  background: #e8f5e9;
+  color: #2e7d32;
+  font-size: 0.75rem;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.refund-x {
+  margin-left: 0.25rem;
+  padding: 0 0.35rem;
+  border-color: #bbb;
+  color: #777;
 }
 
 /* When duplicates are shown, the canonical operation they point at is emphasised */

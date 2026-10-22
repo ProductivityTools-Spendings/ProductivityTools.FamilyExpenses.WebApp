@@ -3,7 +3,7 @@ import { CurrencyPipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Observable } from 'rxjs';
 import { Spending } from '../models/spending';
-import { FillResult, SpendingService } from '../services/spending.service';
+import { FillResult, RefundState, SpendingService } from '../services/spending.service';
 import { EmailService, ProcessingResult } from '../services/email.service';
 import { AllegroPurchase, AllegroService } from '../services/allegro.service';
 import { openPreviewWindow, showHtmlInWindow } from '../services/mbank-raw-email.service';
@@ -129,6 +129,104 @@ export class Spendings implements OnInit {
   }
 
   protected readonly hideDuplicates = signal(true);
+
+  // --- refund marking / linking ----------------------------------------------
+  /** Expense for which the user is currently picking a refund row; null = link mode off. */
+  protected readonly linkingFor = signal<Spending | null>(null);
+  /** Ids of rows with a refund request in flight (their buttons are disabled). */
+  protected readonly refundBusy = signal<Set<number>>(new Set());
+  /** Row briefly highlighted after a badge click; null = none. */
+  protected readonly highlight = signal<number | null>(null);
+  private highlightTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** Red background only while the refund is expected but not linked yet. */
+  protected isRefundExpected(s: Spending): boolean {
+    return s.refundExpected && s.refundSpendingId === null;
+  }
+
+  protected isRefundBusy(s: Spending): boolean {
+    return this.refundBusy().has(s.id);
+  }
+
+  protected expectRefund(s: Spending): void {
+    this.refundRequest(s.id, this.spendingService.expectRefund(s.id), (state) => this.applyRefundState(state));
+  }
+
+  protected startLinking(s: Spending): void {
+    this.linkingFor.set(s);
+  }
+
+  protected cancelLinking(): void {
+    this.linkingFor.set(null);
+  }
+
+  /** Links the expense in link mode with `refund` and leaves link mode. */
+  protected linkRefund(refund: Spending): void {
+    const expense = this.linkingFor();
+    if (!expense || expense.id === refund.id) return;
+    this.refundRequest(expense.id, this.spendingService.linkRefund(expense.id, refund.id), (state) => {
+      this.applyRefundState(state);
+      this.linkingFor.set(null);
+    });
+  }
+
+  /** Removes the flag and the link; the refund row loses its back-reference locally. */
+  protected clearRefund(s: Spending): void {
+    const linked = s.refundSpendingId;
+    this.refundRequest(s.id, this.spendingService.clearRefund(s.id), (state) => {
+      this.applyRefundState(state);
+      if (linked !== null) {
+        this.spendings.update((rows) => rows.map((r) => (r.id === linked ? { ...r, refundOfSpendingId: null } : r)));
+      }
+    });
+  }
+
+  private refundRequest(id: number, request: Observable<RefundState>, apply: (state: RefundState) => void): void {
+    if (this.refundBusy().has(id)) return;
+    this.refundBusy.update((set) => new Set(set).add(id));
+    const release = () =>
+      this.refundBusy.update((set) => {
+        const next = new Set(set);
+        next.delete(id);
+        return next;
+      });
+    request.subscribe({
+      next: (state) => {
+        apply(state);
+        release();
+      },
+      error: (err) => {
+        this.error.set(err?.message ?? 'Nie udało się zapisać oznaczenia zwrotu.');
+        release();
+      },
+    });
+  }
+
+  /** Writes the expense's state and the matching back-reference on its refund row. */
+  private applyRefundState(state: RefundState): void {
+    this.spendings.update((rows) =>
+      rows.map((r) => {
+        if (r.id === state.spendingId) {
+          return {
+            ...r,
+            refundExpected: state.refundExpected,
+            refundSpendingId: state.refundSpendingId,
+            refundOfSpendingId: state.refundOfSpendingId,
+          };
+        }
+        if (r.id === state.refundSpendingId) return { ...r, refundOfSpendingId: state.spendingId };
+        return r;
+      }),
+    );
+  }
+
+  /** Scrolls to the given row and highlights it for 2 s. */
+  protected focusRow(id: number): void {
+    document.getElementById(`spending-${id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    this.highlight.set(id);
+    if (this.highlightTimer) clearTimeout(this.highlightTimer);
+    this.highlightTimer = setTimeout(() => this.highlight.set(null), 2000);
+  }
   protected readonly visibleSpendings = computed(() =>
     this.hideDuplicates() ? this.spendings().filter((s) => s.duplicateOf === null) : this.spendings(),
   );
@@ -161,6 +259,7 @@ export class Spendings implements OnInit {
   protected load(): void {
     this.loading.set(true);
     this.error.set(null);
+    this.linkingFor.set(null);
     this.spendingService.getAll().subscribe({
       next: (data) => {
         this.spendings.set(data);
