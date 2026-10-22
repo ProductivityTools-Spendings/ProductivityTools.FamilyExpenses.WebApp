@@ -143,6 +143,15 @@ export class Spendings implements OnInit {
   protected readonly linkingFor = signal<Spending | null>(null);
   /** Ids of rows with a refund request in flight (their buttons are disabled). */
   protected readonly refundBusy = signal<Set<number>>(new Set());
+  /** In link mode: true for rows whose amount is the exact opposite of the expense (likely refund candidates). */
+  protected isRefundCandidate(s: Spending): boolean {
+    const expense = this.linkingFor();
+    if (!expense || s.id === expense.id) return false;
+    const a = s.amountPln ?? s.amount;
+    const e = expense.amountPln ?? expense.amount;
+    return a > 0 && Math.abs(a + e) < 0.005;
+  }
+
   /** Row briefly highlighted after a badge click; null = none. */
   protected readonly highlight = signal<number | null>(null);
   private highlightTimer: ReturnType<typeof setTimeout> | null = null;

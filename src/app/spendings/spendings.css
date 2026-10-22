@@ -394,3 +394,14 @@ td.editable:hover {
   width: 5.5rem;
   color: #777;
 }
+
+/* link mode: rows with the opposite amount of the flagged expense */
+tr.refund-candidate td {
+  background: #e8f5e9;
+}
+
+tr.refund-candidate .refund-btn {
+  border-color: #2e7d32;
+  color: #2e7d32;
+  font-weight: 600;
+}

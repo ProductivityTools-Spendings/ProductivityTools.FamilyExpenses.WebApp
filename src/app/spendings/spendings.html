@@ -71,6 +71,7 @@
                 [class.primary]="!hideDuplicates() && isPrimary(s)"
                 [class.refund-expected]="isRefundExpected(s)"
                 [class.highlight]="highlight() === s.id"
+                [class.refund-candidate]="isRefundCandidate(s)"
                 [title]="s.duplicateOf !== null ? 'Duplikat transakcji #' + s.duplicateOf : (isPrimary(s) ? 'Operacja podstawowa – ma duplikat' : '')">
               <td>{{ s.id }}</td>
               <td>{{ s.operationDate }}</td>
