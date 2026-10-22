@@ -352,3 +352,39 @@ td.editable:hover {
   color: #555;
   border-color: #bbb;
 }
+
+/* account cell: source/destination account numbers in a hover popup */
+.account-cell {
+  position: relative;
+}
+
+.account-pop {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: 100%;
+  z-index: 20;
+  min-width: 22rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid #bbb;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.account-cell:hover .account-pop {
+  display: block;
+}
+
+.account-pop__row {
+  display: flex;
+  gap: 0.6rem;
+  line-height: 1.5;
+}
+
+.account-pop__label {
+  width: 5.5rem;
+  color: #777;
+}

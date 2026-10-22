@@ -57,8 +57,6 @@
             <th>Typ</th>
             <th>Nazwa</th>
             <th class="num">Kwota PLN</th>
-            <th>Konto źródłowe</th>
-            <th>Konto docelowe</th>
             <th>Konto</th>
             <th>Kategoria</th>
             <th>Allegro</th>
@@ -94,9 +92,15 @@
                   <span class="fx-missing" title="Brak kursu NBP – kliknij „Przelicz na PLN”">—</span>
                 }
               </td>
-              <td class="mono">{{ s.srcAccount }}</td>
-              <td class="mono">{{ s.dstAccount }}</td>
-              <td>{{ s.account }}</td>
+              <td class="account-cell">
+                {{ s.account }}
+                @if (s.srcAccount || s.dstAccount) {
+                  <span class="account-pop">
+                    <span class="account-pop__row"><span class="account-pop__label">Źródłowe</span><span class="mono">{{ s.srcAccount || '—' }}</span></span>
+                    <span class="account-pop__row"><span class="account-pop__label">Docelowe</span><span class="mono">{{ s.dstAccount || '—' }}</span></span>
+                  </span>
+                }
+              </td>
               <td class="editable" (click)="startEdit(s)" title="Kliknij, aby edytować">
                 @if (isEditing(s)) {
                   <select class="edit" [(ngModel)]="editing()!.category" (keydown)="onEditKey($event)" [disabled]="saving()" autofocus>
