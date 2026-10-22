@@ -119,6 +119,14 @@ export class Spendings implements OnInit {
     });
   }
 
+  /** Category picked from the dropdown – saved immediately, no Enter needed (the note keeps its draft). */
+  protected onCategoryPicked(category: string): void {
+    const draft = this.editing();
+    if (!draft) return;
+    this.editing.set({ ...draft, category });
+    this.saveEdit();
+  }
+
   protected onEditKey(event: KeyboardEvent): void {
     if (event.key === 'Enter') {
       event.preventDefault();

@@ -103,7 +103,7 @@
               </td>
               <td class="editable" (click)="startEdit(s)" title="Kliknij, aby edytować">
                 @if (isEditing(s)) {
-                  <select class="edit" [(ngModel)]="editing()!.category" (keydown)="onEditKey($event)" [disabled]="saving()" autofocus>
+                  <select class="edit" [ngModel]="editing()!.category" (ngModelChange)="onCategoryPicked($event)" (keydown)="onEditKey($event)" [disabled]="saving()" autofocus>
                     <option value="">— brak —</option>
                     @for (c of categoryOptions(); track c) { <option [value]="c">{{ c }}</option> }
                   </select>
