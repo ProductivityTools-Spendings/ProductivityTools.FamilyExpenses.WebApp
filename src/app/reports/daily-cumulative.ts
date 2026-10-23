@@ -133,3 +133,55 @@ export function ticks(up: number, down: number, step: number): number[] {
   for (let i = first; i <= last; i++) out.push(i * step || 0); // `|| 0` normalises -0
   return out;
 }
+
+// --- donut geometry (shared by the category-share donut and the daily chart's donut) ------------
+
+/** One donut slice: input item plus its share, SVG path and label position. */
+export interface DonutSlice<T> {
+  item: T;
+  value: number;
+  pct: number;
+  path: string;
+  labelX: number;
+  labelY: number;
+}
+
+/** SVG path of a ring sector between `start` and `end` (radians, clockwise from 3 o'clock); R = outer, r = inner radius, c = centre. */
+export function arcPath(c: number, R: number, r: number, start: number, end: number): string {
+  const large = end - start > Math.PI ? 1 : 0;
+  const p = (rad: number, a: number) => `${(c + rad * Math.cos(a)).toFixed(2)},${(c + rad * Math.sin(a)).toFixed(2)}`;
+  return `M${p(R, start)} A${R},${R} 0 ${large} 1 ${p(R, end)} L${p(r, end)} A${r},${r} 0 ${large} 0 ${p(r, start)} Z`;
+}
+
+/**
+ * Lays out `items` (value ≥ 0, in the given order) as consecutive ring sectors starting at 12 o'clock.
+ * Items with value 0 get an empty sector; a single 100 % item is drawn as a full ring.
+ */
+export function donutSlices<T>(items: readonly T[], value: (item: T) => number, c: number, R: number, r: number): DonutSlice<T>[] {
+  const sum = items.reduce((s, it) => s + value(it), 0);
+  const lr = (R + r) / 2;
+  let angle = -Math.PI / 2;
+  return items.map((item) => {
+    const v = value(item);
+    const frac = sum ? v / sum : 0;
+    const start = angle;
+    const end = angle + Math.min(frac, 0.99999) * 2 * Math.PI;
+    angle = start + frac * 2 * Math.PI;
+    const mid = (start + end) / 2;
+    return { item, value: v, pct: frac * 100, path: arcPath(c, R, r, start, end), labelX: c + lr * Math.cos(mid), labelY: c + lr * Math.sin(mid) };
+  });
+}
+
+/**
+ * Share of each included category in the cumulative spending up to `day` (1-based): only categories whose cumulative
+ * net is negative (expenses) count, with their absolute value; sorted largest first.
+ */
+export function cumulativeShares(month: DailyMonth, day: number, excluded: Set<string>): { category: string; value: number }[] {
+  if (day < 1) return [];
+  const i = Math.min(day, month.days) - 1;
+  return month.categories
+    .filter((c) => !excluded.has(c))
+    .map((c) => ({ category: c, value: -(month.cumulative[c]?.[i] ?? 0) }))
+    .filter((x) => x.value > 0)
+    .sort((a, b) => b.value - a.value);
+}

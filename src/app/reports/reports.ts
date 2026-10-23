@@ -4,7 +4,9 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { CategoryDetail, CategoryMonth, Hygiene, RecurringPayment, ReportService } from '../services/report.service';
-import { aggregateMonth, dayLabel, elapsedDays, forecast, mergeCategories, niceStep, NO_CATEGORY, ticks, totalSeries } from './daily-cumulative';
+import {
+  aggregateMonth, arcPath, cumulativeShares, dayLabel, donutSlices, elapsedDays, forecast, mergeCategories, niceStep, NO_CATEGORY, ticks, totalSeries,
+} from './daily-cumulative';
 import {
   aggregateByGroup, categoryGroupMap, effectiveSelection, groupCategories, groupColor, groupLabel, groupOrder, GroupRow, isCategoryVisible, NO_GROUP,
   orderedGroups, toggleGroupExclusion,
@@ -459,10 +461,7 @@ export class Reports implements OnInit {
   });
 
   private arcPath(start: number, end: number, R: number, r: number): string {
-    const c = this.pieC;
-    const large = end - start > Math.PI ? 1 : 0;
-    const p = (rad: number, a: number) => `${(c + rad * Math.cos(a)).toFixed(2)},${(c + rad * Math.sin(a)).toFixed(2)}`;
-    return `M${p(R, start)} A${R},${R} 0 ${large} 1 ${p(R, end)} L${p(r, end)} A${r},${r} 0 ${large} 0 ${p(r, start)} Z`;
+    return arcPath(this.pieC, R, r, start, end);
   }
 
   // --- MAT: moving annual total --------------------------------------------
@@ -823,6 +822,20 @@ export class Reports implements OnInit {
   });
 
   protected readonly dailyDays = computed(() => Array.from({ length: this.dailyCur().days }, (_, i) => i + 1));
+
+  // daily donut: share of each included category in the cumulative spending up to the last drawn day
+  protected readonly dailyPieC = 110;
+  protected readonly dailyPieSlices = computed(() => {
+    const colors = this.dailyColors();
+    const shares = cumulativeShares(this.dailyCur(), this.dailyElapsed(), this.dailyOmitted());
+    const pln = (v: number) => `${formatNumber(v, 'pl', '1.0-0')} zł`;
+    return donutSlices(shares, (x) => x.value, this.dailyPieC, 100, 58).map((s) => ({
+      category: s.item.category, value: s.value, pct: s.pct, path: s.path, labelX: s.labelX, labelY: s.labelY,
+      color: colors.get(s.item.category) ?? PIE_COLORS[0],
+      tip: `${s.item.category} · ${pln(s.value)} · ${formatNumber(s.pct, 'pl', '1.1-1')} %`,
+    }));
+  });
+  protected readonly dailyPieTotal = computed(() => this.dailyPieSlices().reduce((s, x) => s + x.value, 0));
 
   // --- report 8: recurring ------------------------------------------------
   protected readonly showInactive = signal(false);

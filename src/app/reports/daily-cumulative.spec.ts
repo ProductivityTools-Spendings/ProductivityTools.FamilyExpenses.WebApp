@@ -1,6 +1,9 @@
 import {
   aggregateMonth,
+  arcPath,
+  cumulativeShares,
   cumulativeSum,
+  donutSlices,
   dayLabel,
   daysInMonth,
   elapsedDays,
@@ -97,5 +100,26 @@ describe('daily-cumulative', () => {
     expect(niceStep(0)).toBe(1);
     expect(ticks(1000, 0, 500)).toEqual([0, 500, 1000]);
     expect(ticks(900, 120, 500)).toEqual([-500, 0, 500]);
+  });
+
+  it('arcPath / donutSlices lay out consecutive sectors from 12 o’clock', () => {
+    expect(arcPath(100, 50, 20, -Math.PI / 2, 0)).toBe('M100.00,50.00 A50,50 0 0 1 150.00,100.00 L120.00,100.00 A20,20 0 0 0 100.00,80.00 Z');
+    const out = donutSlices([{ k: 'a', v: 75 }, { k: 'b', v: 25 }, { k: 'c', v: 0 }], (x) => x.v, 100, 50, 20);
+    expect(out.map((s) => s.pct)).toEqual([75, 25, 0]);
+    expect(out[0].path.startsWith('M100.00,50.00 A50,50 0 1 1 ')).toBe(true); // > 180° → large-arc flag
+    expect(out[1].path.startsWith('M')).toBe(true);
+    expect(out[0].labelX).toBeGreaterThan(100); // label of the first (right-hand) sector sits right of the centre
+    expect(donutSlices([], () => 1, 100, 50, 20)).toEqual([]);
+    expect(donutSlices([{ v: 0 }], (x) => x.v, 100, 50, 20)[0].pct).toBe(0);
+  });
+
+  it('cumulativeShares: expenses only, by day, largest first, excluded skipped', () => {
+    const m = aggregateMonth(rows, '2026-03');
+    expect(cumulativeShares(m, 2, new Set())).toEqual([
+      { category: 'Paliwo', value: 200 },
+      { category: 'Jedzenie', value: 150 },
+    ]);
+    expect(cumulativeShares(m, 31, new Set(['Paliwo'])).map((x) => x.category)).toEqual(['Jedzenie', NO_CATEGORY]); // Zwroty (net > 0) skipped
+    expect(cumulativeShares(m, 0, new Set())).toEqual([]);
   });
 });

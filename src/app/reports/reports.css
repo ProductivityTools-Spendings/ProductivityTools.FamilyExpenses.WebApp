@@ -573,8 +573,28 @@ td.selected {
   text-decoration: none !important;
 }
 
-.daily-groups {
-  margin-bottom: 0.35rem;
-  padding-bottom: 0.35rem;
-  border-bottom: 1px dashed #e0e0e0;
+.daily-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.daily-row .daily-chart {
+  flex: 1 1 600px;
+  min-width: 0;
+  max-width: none;
+}
+
+.daily-pie {
+  width: 220px;
+  flex: 0 0 auto;
+}
+
+.daily-group-line {
+  margin-top: 0.3rem;
+}
+
+.daily-group .dot {
+  margin: 0 0.2rem 0 0.1rem;
 }
